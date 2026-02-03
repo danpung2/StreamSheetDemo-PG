@@ -23,6 +23,10 @@ dependencies {
     // 인증/인가 / Authentication/Authorization
     implementation("org.springframework.boot:spring-boot-starter-security")
     
+    // Spring AOP
+    // 테넌트 권한 검증 Aspect용 / For tenant access authorization aspect
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+    
     // JWT (JJWT)
     // JWT 토큰 처리 / JWT token handling
     implementation("io.jsonwebtoken:jjwt-api:0.12.3")
