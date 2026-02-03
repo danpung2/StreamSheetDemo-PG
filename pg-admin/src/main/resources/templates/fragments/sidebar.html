@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <body>
+    <aside class="sidebar" th:fragment="sidebar(active)">
+      <div class="brand">
+        <div class="brand-mark">PG</div>
+        <div class="brand-text">
+          <span class="brand-title">Payment Gateway</span>
+          <span class="brand-subtitle">Admin</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="nav-item" th:classappend="${active} == 'dashboard' ? ' is-active'" th:href="@{/admin/dashboard}">
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" th:classappend="${active} == 'payments' ? ' is-active'" th:href="@{/admin/payments}">
+          <span>Payments</span>
+        </a>
+        <a class="nav-item" th:classappend="${active} == 'exports' ? ' is-active'" th:href="@{/admin/exports/payments}">
+          <span>Exports</span>
+        </a>
+        <a class="nav-item" th:classappend="${active} == 'merchants' ? ' is-active'" th:href="@{/admin/merchants}">
+          <span>Merchants</span>
+        </a>
+        <div class="nav-divider">Administration</div>
+        <div sec:authorize="hasRole('SUPER_ADMIN')">
+          <a class="nav-item" th:classappend="${active} == 'users' ? ' is-active'" th:href="@{/admin/users}">
+            <span>Users</span>
+          </a>
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <p class="caption">Tenant</p>
+        <strong th:text="${tenantName} ?: 'Global'">Global</strong>
+      </div>
+    </aside>
+  </body>
+</html>

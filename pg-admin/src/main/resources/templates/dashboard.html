@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Dashboard'">
+  <section class="page">
+    <div th:replace="fragments/header :: header('Dashboard')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('dashboard')"></div>
+      <main class="main">
+        <section class="cards">
+          <div class="card">
+            <span class="card-label">Total volume</span>
+            <strong class="card-value" th:text="${kpis.totalVolume}">$12.4M</strong>
+            <span class="card-trend up">+8.2% this week</span>
+          </div>
+          <div class="card">
+            <span class="card-label">Successful payments</span>
+            <strong class="card-value" th:text="${kpis.successfulPayments}">4,291</strong>
+            <span class="card-trend up">+3.1% today</span>
+          </div>
+          <div class="card">
+            <span class="card-label">Disputes</span>
+            <strong class="card-value" th:text="${kpis.disputes}">12</strong>
+            <span class="card-trend down">-1 from yesterday</span>
+          </div>
+          <div class="card">
+            <span class="card-label">Pending reviews</span>
+            <strong class="card-value" th:text="${kpis.pendingReviews}">7</strong>
+            <span class="card-trend">Updated 5m ago</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Recent payments</h2>
+            <a class="button ghost" th:href="@{/admin/payments}">View all</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment ID</th>
+                  <th>Merchant</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="payment : ${recentPayments}">
+                  <td th:text="${payment.id}">PMT-24018</td>
+                  <td th:text="${payment.merchant}">Nova Market</td>
+                  <td th:text="${payment.amount}">$1,240.00</td>
+                  <td><span class="status success" th:text="${payment.status}">Captured</span></td>
+                  <td th:text="${payment.updatedAt}">2m ago</td>
+                </tr>
+                <tr th:if="${recentPayments == null}">
+                  <td colspan="5" class="empty">No recent payments found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Exports'">
+  <section class="page">
+    <div th:replace="fragments/header :: header('Exports')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('exports')"></div>
+      <main class="main">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Payments exports</h2>
+            <button class="button primary" type="button">Request export</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Export ID</th>
+                  <th>Range</th>
+                  <th>Requested by</th>
+                  <th>Status</th>
+                  <th>Queued</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="exportJob : ${exportJobs}">
+                  <td th:text="${exportJob.id}">EXP-0402</td>
+                  <td th:text="${exportJob.range}">2026-02-01 — 2026-02-02</td>
+                  <td th:text="${exportJob.requestedBy}">J. Rivera</td>
+                  <td><span class="status" th:classappend="${exportJob.statusClass}" th:text="${exportJob.status}">Queued</span></td>
+                  <td th:text="${exportJob.queuedAt}">10m ago</td>
+                </tr>
+                <tr th:if="${exportJobs == null}">
+                  <td colspan="5" class="empty">No export jobs found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+</html>

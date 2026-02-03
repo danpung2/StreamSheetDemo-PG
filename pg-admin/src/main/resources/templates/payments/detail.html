@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Payment Detail'">
+  <section class="page">
+    <div th:replace="fragments/header :: header('Payment detail')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
+      <main class="main">
+        <section class="panel detail">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Payment</p>
+              <h2 th:text="${payment.id}">PMT-24018</h2>
+            </div>
+            <span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">Captured</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-card">
+              <span class="detail-label">Amount</span>
+              <strong th:text="${payment.amount}">$1,240.00</strong>
+            </div>
+            <div class="detail-card">
+              <span class="detail-label">Merchant</span>
+              <strong th:text="${payment.merchant}">Nova Market</strong>
+            </div>
+            <div class="detail-card">
+              <span class="detail-label">Method</span>
+              <strong th:text="${payment.method}">Card</strong>
+            </div>
+            <div class="detail-card">
+              <span class="detail-label">Customer</span>
+              <strong th:text="${payment.customer}">J. Rivera</strong>
+            </div>
+          </div>
+          <div class="panel-section">
+            <h3>Timeline</h3>
+            <ul class="timeline">
+              <li th:each="event : ${payment.events}">
+                <span class="timeline-time" th:text="${event.time}">09:20</span>
+                <span class="timeline-title" th:text="${event.title}">Authorized</span>
+                <span class="timeline-note" th:text="${event.note}">Risk review passed</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+</html>

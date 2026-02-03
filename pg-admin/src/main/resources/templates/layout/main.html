@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content)">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title th:text="${pageTitle} ?: 'PG Admin'">PG Admin</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+    <script defer src="/js/common.js"></script>
+  </head>
+  <body class="app">
+    <div class="backdrop"></div>
+    <div class="app-shell" th:replace="${content}">
+      <main class="content">Content</main>
+    </div>
+  </body>
+</html>

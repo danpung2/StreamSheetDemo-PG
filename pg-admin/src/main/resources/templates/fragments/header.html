@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <header class="topbar" th:fragment="header(title)">
+      <div class="topbar-title">
+        <p class="eyebrow">PG Admin Console</p>
+        <h1 th:text="${title}">Dashboard</h1>
+      </div>
+      <div class="topbar-meta">
+        <div class="meta-card">
+          <span class="meta-label">Environment</span>
+          <strong>Staging</strong>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">Last sync</span>
+          <strong class="js-now">Just now</strong>
+        </div>
+        <div class="meta-card user">
+          <span class="meta-label">Signed in</span>
+          <strong th:text="${currentUser} ?: 'Admin User'">Admin User</strong>
+        </div>
+      </div>
+    </header>
+  </body>
+</html>

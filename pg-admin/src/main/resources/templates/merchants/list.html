@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Merchants'">
+  <section class="page">
+    <div th:replace="fragments/header :: header('Merchants')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('merchants')"></div>
+      <main class="main">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Merchants</h2>
+            <div class="filters">
+              <span class="chip">Active</span>
+              <span class="chip muted">Region: All</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Merchant</th>
+                  <th>Industry</th>
+                  <th>Risk tier</th>
+                  <th>Payments today</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="merchant : ${merchants}">
+                  <td th:text="${merchant.name}">Nova Market</td>
+                  <td th:text="${merchant.industry}">Retail</td>
+                  <td><span class="chip" th:text="${merchant.risk}">Moderate</span></td>
+                  <td th:text="${merchant.payments}">124</td>
+                  <td th:text="${merchant.owner}">N. Arora</td>
+                </tr>
+                <tr th:if="${merchants == null}">
+                  <td colspan="5" class="empty">No merchants available.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+</html>
