@@ -46,6 +46,11 @@ spring:
 server:
   port: 8081
 
+# pg-main API 설정
+# pg-main API configuration
+pg-main:
+  base-url: http://localhost:8080
+
 # JWT 설정
 # JWT configuration
 # NOTE: 실제 운영 환경에서는 환경 변수로 관리하세요

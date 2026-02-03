@@ -1,43 +1,51 @@
 package com.example.pgdemo.admin.view
 
+import com.example.pgdemo.admin.client.PgMainApiClient
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.client.RestClientException
 
 @Controller
 @RequestMapping("/admin")
-class MerchantViewController {
+class MerchantViewController(
+    private val pgMainApiClient: PgMainApiClient
+) {
 
     @GetMapping("/merchants")
     fun merchants(model: Model): String {
         model.addAttribute("pageTitle", "Merchants")
+        var loadError = false
+        val merchantResponses = try {
+            pgMainApiClient.listMerchants(0, 50)?.content.orEmpty()
+        } catch (ex: RestClientException) {
+            loadError = true
+            emptyList()
+        }
         model.addAttribute(
             "merchants",
-            listOf(
+            merchantResponses.map { merchant ->
                 mapOf(
-                    "name" to "Nova Market",
-                    "industry" to "Retail",
-                    "risk" to "Moderate",
-                    "payments" to "124",
-                    "owner" to "N. Arora"
-                ),
-                mapOf(
-                    "name" to "Atlas Health",
-                    "industry" to "Healthcare",
-                    "risk" to "Low",
-                    "payments" to "62",
-                    "owner" to "J. Rivera"
-                ),
-                mapOf(
-                    "name" to "Solace Mobility",
-                    "industry" to "Transport",
-                    "risk" to "Elevated",
-                    "payments" to "98",
-                    "owner" to "K. Chen"
+                    "name" to merchant.name,
+                    "industry" to formatLabel(merchant.businessType.name),
+                    "risk" to formatLabel(merchant.status),
+                    "payments" to "0",
+                    "owner" to "-"
                 )
-            )
+            }
         )
+        if (loadError) {
+            model.addAttribute("loadError", true)
+        }
         return "merchants/list"
+    }
+
+    private fun formatLabel(value: String): String {
+        return value.lowercase()
+            .split("_", " ")
+            .joinToString(" ") { segment ->
+                segment.replaceFirstChar { char -> char.uppercase() }
+            }
     }
 }

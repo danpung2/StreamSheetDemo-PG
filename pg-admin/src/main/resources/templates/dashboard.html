@@ -8,7 +8,7 @@
         <section class="cards">
           <div class="card">
             <span class="card-label">Total volume</span>
-            <strong class="card-value" th:text="${kpis.totalVolume}">$12.4M</strong>
+            <strong class="card-value" th:text="${kpis.totalVolume}">-</strong>
             <span class="card-trend up">+8.2% this week</span>
           </div>
           <div class="card">
@@ -46,13 +46,13 @@
               </thead>
               <tbody>
                 <tr th:each="payment : ${recentPayments}">
-                  <td th:text="${payment.id}">PMT-24018</td>
-                  <td th:text="${payment.merchant}">Nova Market</td>
+                  <td th:text="${payment.id}">-</td>
+                  <td th:text="${payment.merchant}">-</td>
                   <td th:text="${payment.amount}">$1,240.00</td>
                   <td><span class="status success" th:text="${payment.status}">Captured</span></td>
                   <td th:text="${payment.updatedAt}">2m ago</td>
                 </tr>
-                <tr th:if="${recentPayments == null}">
+                <tr th:if="${recentPayments == null or #lists.isEmpty(recentPayments)}">
                   <td colspan="5" class="empty">No recent payments found.</td>
                 </tr>
               </tbody>

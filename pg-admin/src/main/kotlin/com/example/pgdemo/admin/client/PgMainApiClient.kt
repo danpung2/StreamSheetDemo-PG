@@ -1,0 +1,51 @@
+package com.example.pgdemo.admin.client
+
+import java.util.UUID
+import org.springframework.core.ParameterizedTypeReference
+import org.springframework.stereotype.Component
+import org.springframework.web.client.RestClient
+
+@Component
+class PgMainApiClient(
+    private val restClient: RestClient
+) {
+    fun listPayments(page: Int, size: Int): PageResponse<PaymentResponse>? {
+        val responseType = object : ParameterizedTypeReference<PageResponse<PaymentResponse>>() {}
+        return restClient.get()
+            .uri { builder ->
+                builder.path("/api/v1/payments")
+                    .queryParam("page", page)
+                    .queryParam("size", size)
+                    .build()
+            }
+            .retrieve()
+            .body(responseType)
+    }
+
+    fun getPayment(id: UUID): PaymentResponse? {
+        return restClient.get()
+            .uri("/api/v1/payments/{id}", id)
+            .retrieve()
+            .body(PaymentResponse::class.java)
+    }
+
+    fun listMerchants(page: Int, size: Int): PageResponse<MerchantResponse>? {
+        val responseType = object : ParameterizedTypeReference<PageResponse<MerchantResponse>>() {}
+        return restClient.get()
+            .uri { builder ->
+                builder.path("/api/v1/merchants")
+                    .queryParam("page", page)
+                    .queryParam("size", size)
+                    .build()
+            }
+            .retrieve()
+            .body(responseType)
+    }
+
+    fun getMerchant(id: UUID): MerchantResponse? {
+        return restClient.get()
+            .uri("/api/v1/merchants/{id}", id)
+            .retrieve()
+            .body(MerchantResponse::class.java)
+    }
+}

@@ -29,7 +29,7 @@
                   <td th:text="${adminUser.lastActive}">2m ago</td>
                   <td><span class="status" th:classappend="${adminUser.statusClass}" th:text="${adminUser.status}">Active</span></td>
                 </tr>
-                <tr th:if="${users == null}">
+                <tr th:if="${users == null or #lists.isEmpty(users)}">
                   <td colspan="5" class="empty">No users available.</td>
                 </tr>
               </tbody>

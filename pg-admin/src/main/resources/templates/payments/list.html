@@ -27,14 +27,14 @@
               </thead>
               <tbody>
                 <tr th:each="payment : ${payments}">
-                  <td><a th:href="@{/admin/payments/{paymentId}(paymentId=${payment.id})}" th:text="${payment.id}">PMT-24018</a></td>
-                  <td th:text="${payment.merchant}">Nova Market</td>
+                  <td><a th:href="@{/admin/payments/{paymentId}(paymentId=${payment.id})}" th:text="${payment.id}">-</a></td>
+                  <td th:text="${payment.merchant}">-</td>
                   <td th:text="${payment.amount}">$1,240.00</td>
                   <td th:text="${payment.method}">Card</td>
                   <td><span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">Captured</span></td>
                   <td th:text="${payment.createdAt}">2026-02-02</td>
                 </tr>
-                <tr th:if="${payments == null}">
+                <tr th:if="${payments == null or #lists.isEmpty(payments)}">
                   <td colspan="6" class="empty">No payments available.</td>
                 </tr>
               </tbody>

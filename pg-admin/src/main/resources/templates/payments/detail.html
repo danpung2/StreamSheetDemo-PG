@@ -9,7 +9,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Payment</p>
-              <h2 th:text="${payment.id}">PMT-24018</h2>
+            <h2 th:text="${payment.id}">-</h2>
             </div>
             <span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">Captured</span>
           </div>
@@ -20,7 +20,7 @@
             </div>
             <div class="detail-card">
               <span class="detail-label">Merchant</span>
-              <strong th:text="${payment.merchant}">Nova Market</strong>
+              <strong th:text="${payment.merchant}">-</strong>
             </div>
             <div class="detail-card">
               <span class="detail-label">Method</span>

@@ -26,13 +26,13 @@
               </thead>
               <tbody>
                 <tr th:each="merchant : ${merchants}">
-                  <td th:text="${merchant.name}">Nova Market</td>
+                  <td th:text="${merchant.name}">-</td>
                   <td th:text="${merchant.industry}">Retail</td>
                   <td><span class="chip" th:text="${merchant.risk}">Moderate</span></td>
                   <td th:text="${merchant.payments}">124</td>
                   <td th:text="${merchant.owner}">N. Arora</td>
                 </tr>
-                <tr th:if="${merchants == null}">
+                <tr th:if="${merchants == null or #lists.isEmpty(merchants)}">
                   <td colspan="5" class="empty">No merchants available.</td>
                 </tr>
               </tbody>
