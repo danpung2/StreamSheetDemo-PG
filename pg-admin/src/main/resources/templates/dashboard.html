@@ -7,42 +7,114 @@
       <main class="main">
         <section class="cards">
           <div class="card">
-            <span class="card-label">Total volume</span>
-            <strong class="card-value" th:text="${kpis.totalVolume}">-</strong>
+            <span class="card-label">Total amount (24h)</span>
+            <strong class="card-value" th:text="${kpis.totalAmount}">-</strong>
             <span class="card-trend" th:text="|Updated ${dashboardUpdatedAt}|">Updated -</span>
           </div>
           <div class="card">
-            <span class="card-label">Successful payments</span>
-            <strong class="card-value" th:text="${kpis.successfulPayments}">-</strong>
+            <span class="card-label">Success rate (24h)</span>
+            <strong class="card-value" th:text="${kpis.successRate}">-</strong>
+          </div>
+          <div class="card">
+            <span class="card-label">Failure rate (24h)</span>
+            <strong class="card-value" th:text="${kpis.failureRate}">-</strong>
+          </div>
+          <div class="card">
+            <span class="card-label">Refund rate (24h)</span>
+            <strong class="card-value" th:text="${kpis.refundRate}">-</strong>
+          </div>
+          <div class="card">
+            <span class="card-label">Delay p95 (24h)</span>
+            <strong class="card-value" th:text="${kpis.delayP95}">-</strong>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
-            <h2>Recent payments</h2>
-            <a class="button ghost" th:href="@{/admin/payments}">View all</a>
+            <h2>Warnings</h2>
+            <a class="button ghost" th:href="@{/admin/payments(from=${paymentsLinkFrom},to=${paymentsLinkTo})}">Payments (24h)</a>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Payment ID</th>
-                  <th>Merchant</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Updated</th>
+                  <th>Alert</th>
+                  <th>Detail</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                <tr th:each="payment : ${recentPayments}">
-                  <td th:text="${payment.id}">-</td>
-                  <td th:text="${payment.merchant}">-</td>
-                  <td th:text="${payment.amount}">-</td>
-                  <td><span class="status success" th:text="${payment.status}">-</span></td>
-                  <td th:text="${payment.updatedAt}">-</td>
+                <tr th:each="warning : ${warnings}">
+                  <td th:text="${warning.title}">-</td>
+                  <td th:text="${warning.detail}">-</td>
+                  <td><a class="button ghost" th:href="${warning.link}">Open</a></td>
                 </tr>
-                <tr th:if="${recentPayments == null or #lists.isEmpty(recentPayments)}">
-                  <td colspan="5" class="empty">No recent payments found.</td>
+                <tr th:if="${warnings == null or #lists.isEmpty(warnings)}">
+                  <td colspan="3" class="empty">No warnings.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Top merchants (failure rate)</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Merchant</th>
+                  <th>Failure rate</th>
+                  <th>Failed</th>
+                  <th>Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="m : ${topMerchants}">
+                  <td th:text="${m.merchantName}">-</td>
+                  <td><span class="chip" th:text="${m.failureRate}">-</span></td>
+                  <td th:text="${m.failedCount}">-</td>
+                  <td th:text="${m.totalCount}">-</td>
+                  <td><a class="button ghost" th:href="@{/admin/payments(from=${paymentsLinkFrom},to=${paymentsLinkTo},merchantId=${m.merchantId},status='PAYMENT_FAILED')}">Drilldown</a></td>
+                </tr>
+                <tr th:if="${topMerchants == null or #lists.isEmpty(topMerchants)}">
+                  <td colspan="5" class="empty">No data.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Exports / Batch</h2>
+            <a class="button ghost" th:href="@{/admin/exports/payments}">Exports</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Signal</th>
+                  <th>Status</th>
+                  <th>Queued</th>
+                  <th>Finished</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Latest export job</td>
+                  <td><span class="chip" th:text="${exportStatus.exportJobStatus}">-</span></td>
+                  <td th:text="${exportStatus.exportJobQueuedAt}">-</td>
+                  <td th:text="${exportStatus.exportJobFinishedAt}">-</td>
+                </tr>
+                <tr>
+                  <td>Payment view synced</td>
+                  <td><span class="chip muted">Mongo</span></td>
+                  <td th:text="${exportStatus.paymentViewSyncedAt}">-</td>
+                  <td>-</td>
                 </tr>
               </tbody>
             </table>
