@@ -16,6 +16,7 @@ class PgMainApiClient(
                 builder.path("/api/v1/payments")
                     .queryParam("page", page)
                     .queryParam("size", size)
+                    .queryParam("sort", "requestedAt,desc")
                     .build()
             }
             .retrieve()
@@ -36,6 +37,7 @@ class PgMainApiClient(
                 builder.path("/api/v1/merchants")
                     .queryParam("page", page)
                     .queryParam("size", size)
+                    .queryParam("sort", "createdAt,desc")
                     .build()
             }
             .retrieve()
