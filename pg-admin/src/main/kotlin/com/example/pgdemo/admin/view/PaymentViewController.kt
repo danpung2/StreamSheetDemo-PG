@@ -1,6 +1,8 @@
 package com.example.pgdemo.admin.view
 
 import com.example.pgdemo.admin.client.PgMainApiClient
+import com.example.pgdemo.admin.client.PaymentResponse
+import com.example.pgdemo.admin.export.ExportHistoryStore
 import com.example.pgdemo.common.domain.enum.PaymentStatus
 import java.text.NumberFormat
 import java.time.Instant
@@ -17,7 +19,8 @@ import org.springframework.web.client.RestClientException
 @Controller
 @RequestMapping("/admin")
 class PaymentViewController(
-    private val pgMainApiClient: PgMainApiClient
+    private val pgMainApiClient: PgMainApiClient,
+    private val exportHistoryStore: ExportHistoryStore
 ) {
 
     @GetMapping("/payments")
@@ -90,12 +93,12 @@ class PaymentViewController(
             mapOf(
                 "id" to (payment?.id?.toString() ?: paymentId),
                 "merchant" to merchantName,
-                "amount" to formatAmount(payment?.amount ?: 0),
+                "amount" to (payment?.amount?.let { formatAmount(it) } ?: "-"),
                 "method" to (payment?.paymentMethod ?: "-"),
                 "customer" to (payment?.orderId ?: "-"),
-                "status" to (payment?.status?.let { formatStatus(it) } ?: "Unknown"),
+                "status" to (payment?.status?.let { formatStatus(it) } ?: "-"),
                 "statusClass" to (payment?.status?.let { statusClass(it) } ?: "warning"),
-                "events" to emptyList<Map<String, String>>()
+                "events" to buildEvents(payment)
             )
         )
         if (loadError) {
@@ -107,8 +110,62 @@ class PaymentViewController(
     @GetMapping("/exports/payments")
     fun paymentExports(model: Model): String {
         model.addAttribute("pageTitle", "Exports")
-        model.addAttribute("exportJobs", emptyList<Map<String, String>>())
+        model.addAttribute(
+            "exportJobs",
+            exportHistoryStore.listPaymentExports(50).map { item ->
+                mapOf(
+                    "id" to item.id,
+                    "range" to item.range,
+                    "requestedBy" to item.requestedBy,
+                    "status" to item.status,
+                    "statusClass" to item.statusClass,
+                    "queuedAt" to formatInstant(item.queuedAt)
+                )
+            }
+        )
         return "exports/payments"
+    }
+
+    private fun buildEvents(payment: PaymentResponse?): List<Map<String, String>> {
+        if (payment == null) {
+            return emptyList()
+        }
+
+        val zone = ZoneId.systemDefault()
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm").withZone(zone)
+        fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
+
+        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
+
+        events.add(
+            payment.requestedAt to mapOf(
+                "time" to fmtTime(payment.requestedAt),
+                "title" to "Requested",
+                "note" to "orderId=${payment.orderId}"
+            )
+        )
+
+        payment.processedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Processed",
+                    "note" to (payment.failureReason?.let { reason -> "failureReason=$reason" } ?: "-")
+                )
+            )
+        }
+
+        payment.completedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Completed",
+                    "note" to "status=${payment.status}"
+                )
+            )
+        }
+
+        return events.sortedBy { it.first }.map { it.second }
     }
 
     private fun formatAmount(amount: Long): String {

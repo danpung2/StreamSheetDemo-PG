@@ -13,18 +13,7 @@
           </div>
           <div class="card">
             <span class="card-label">Successful payments</span>
-            <strong class="card-value" th:text="${kpis.successfulPayments}">4,291</strong>
-            <span class="card-trend up">+3.1% today</span>
-          </div>
-          <div class="card">
-            <span class="card-label">Disputes</span>
-            <strong class="card-value" th:text="${kpis.disputes}">12</strong>
-            <span class="card-trend down">-1 from yesterday</span>
-          </div>
-          <div class="card">
-            <span class="card-label">Pending reviews</span>
-            <strong class="card-value" th:text="${kpis.pendingReviews}">7</strong>
-            <span class="card-trend">Updated 5m ago</span>
+            <strong class="card-value" th:text="${kpis.successfulPayments}">-</strong>
           </div>
         </section>
 
@@ -48,9 +37,9 @@
                 <tr th:each="payment : ${recentPayments}">
                   <td th:text="${payment.id}">-</td>
                   <td th:text="${payment.merchant}">-</td>
-                  <td th:text="${payment.amount}">$1,240.00</td>
-                  <td><span class="status success" th:text="${payment.status}">Captured</span></td>
-                  <td th:text="${payment.updatedAt}">2m ago</td>
+                  <td th:text="${payment.amount}">-</td>
+                  <td><span class="status success" th:text="${payment.status}">-</span></td>
+                  <td th:text="${payment.updatedAt}">-</td>
                 </tr>
                 <tr th:if="${recentPayments == null or #lists.isEmpty(recentPayments)}">
                   <td colspan="5" class="empty">No recent payments found.</td>

@@ -24,10 +24,10 @@
               <tbody>
                 <tr th:each="exportJob : ${exportJobs}">
                   <td th:text="${exportJob.id}">-</td>
-                  <td th:text="${exportJob.range}">2026-02-01 — 2026-02-02</td>
-                  <td th:text="${exportJob.requestedBy}">J. Rivera</td>
-                  <td><span class="status" th:classappend="${exportJob.statusClass}" th:text="${exportJob.status}">Queued</span></td>
-                  <td th:text="${exportJob.queuedAt}">10m ago</td>
+                  <td th:text="${exportJob.range}">-</td>
+                  <td th:text="${exportJob.requestedBy}">-</td>
+                  <td><span class="status" th:classappend="${exportJob.statusClass}" th:text="${exportJob.status}">-</span></td>
+                  <td th:text="${exportJob.queuedAt}">-</td>
                 </tr>
                 <tr th:if="${exportJobs == null or #lists.isEmpty(exportJobs)}">
                   <td colspan="5" class="empty">No export jobs found.</td>

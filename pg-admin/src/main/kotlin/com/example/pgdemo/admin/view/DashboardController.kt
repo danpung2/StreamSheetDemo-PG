@@ -43,9 +43,7 @@ class DashboardController(
             "kpis",
             mapOf(
                 "totalVolume" to formatAmount(totalVolume),
-                "successfulPayments" to successfulPayments.toString(),
-                "disputes" to "0",
-                "pendingReviews" to "0"
+                "successfulPayments" to successfulPayments.toString()
             )
         )
         model.addAttribute(

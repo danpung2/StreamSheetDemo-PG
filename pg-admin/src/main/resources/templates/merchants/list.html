@@ -20,20 +20,16 @@
                   <th>Merchant</th>
                   <th>Industry</th>
                   <th>Risk tier</th>
-                  <th>Payments today</th>
-                  <th>Owner</th>
                 </tr>
               </thead>
               <tbody>
                 <tr th:each="merchant : ${merchants}">
                   <td th:text="${merchant.name}">-</td>
-                  <td th:text="${merchant.industry}">Retail</td>
-                  <td><span class="chip" th:text="${merchant.risk}">Moderate</span></td>
-                  <td th:text="${merchant.payments}">124</td>
-                  <td th:text="${merchant.owner}">N. Arora</td>
+                  <td th:text="${merchant.industry}">-</td>
+                  <td><span class="chip" th:text="${merchant.risk}">-</span></td>
                 </tr>
                 <tr th:if="${merchants == null or #lists.isEmpty(merchants)}">
-                  <td colspan="5" class="empty">No merchants available.</td>
+                  <td colspan="3" class="empty">No merchants available.</td>
                 </tr>
               </tbody>
             </table>

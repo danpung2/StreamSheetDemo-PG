@@ -1,9 +1,11 @@
 package com.example.pgdemo.admin.export
 
 import jakarta.servlet.http.HttpServletResponse
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -12,7 +14,8 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/admin/exports")
 class ExportController(
-    private val exportService: ExportService
+    private val exportService: ExportService,
+    private val exportHistoryStore: ExportHistoryStore
 ) {
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
@@ -37,6 +40,10 @@ class ExportController(
         response.contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         response.setHeader("Content-Disposition", "attachment; filename=\"$filename\"")
 
+        val requestedBy = SecurityContextHolder.getContext().authentication?.name ?: "-"
+        val range = "$parsedStartDate — $parsedEndDate"
+        val queuedAt = Instant.now()
+
         response.outputStream.use { outputStream ->
             exportService.exportPayments(
                 startDate = parsedStartDate,
@@ -46,5 +53,14 @@ class ExportController(
                 merchantId = merchantUuid
             )
         }
+
+        exportHistoryStore.recordPaymentExport(
+            range = range,
+            requestedBy = requestedBy,
+            status = "Completed",
+            statusClass = "success",
+            queuedAt = queuedAt,
+            downloadFilename = filename
+        )
     }
 }

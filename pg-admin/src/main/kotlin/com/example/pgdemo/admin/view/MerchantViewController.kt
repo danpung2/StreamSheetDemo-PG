@@ -29,9 +29,7 @@ class MerchantViewController(
                 mapOf(
                     "name" to merchant.name,
                     "industry" to formatLabel(merchant.businessType.name),
-                    "risk" to formatLabel(merchant.status),
-                    "payments" to "0",
-                    "owner" to "-"
+                    "risk" to formatLabel(merchant.status)
                 )
             }
         )

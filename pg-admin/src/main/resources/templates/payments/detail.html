@@ -11,12 +11,12 @@
               <p class="eyebrow">Payment</p>
             <h2 th:text="${payment.id}">-</h2>
             </div>
-            <span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">Captured</span>
+            <span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">-</span>
           </div>
           <div class="detail-grid">
             <div class="detail-card">
               <span class="detail-label">Amount</span>
-              <strong th:text="${payment.amount}">$1,240.00</strong>
+              <strong th:text="${payment.amount}">-</strong>
             </div>
             <div class="detail-card">
               <span class="detail-label">Merchant</span>
@@ -24,20 +24,20 @@
             </div>
             <div class="detail-card">
               <span class="detail-label">Method</span>
-              <strong th:text="${payment.method}">Card</strong>
+              <strong th:text="${payment.method}">-</strong>
             </div>
             <div class="detail-card">
               <span class="detail-label">Customer</span>
-              <strong th:text="${payment.customer}">J. Rivera</strong>
+              <strong th:text="${payment.customer}">-</strong>
             </div>
           </div>
           <div class="panel-section">
             <h3>Timeline</h3>
             <ul class="timeline">
               <li th:each="event : ${payment.events}">
-                <span class="timeline-time" th:text="${event.time}">09:20</span>
-                <span class="timeline-title" th:text="${event.title}">Authorized</span>
-                <span class="timeline-note" th:text="${event.note}">Risk review passed</span>
+                <span class="timeline-time" th:text="${event.time}">-</span>
+                <span class="timeline-title" th:text="${event.title}">-</span>
+                <span class="timeline-note" th:text="${event.note}">-</span>
               </li>
             </ul>
           </div>
