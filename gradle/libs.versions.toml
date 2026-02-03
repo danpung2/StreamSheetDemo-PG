@@ -1,0 +1,29 @@
+# Version Catalog definition for centralized dependency management
+
+[versions]
+springBoot = "3.2.2"
+springDependencyManagement = "1.1.4"
+kotlin = "1.9.22"
+postgresql = "42.7.1"
+mongodb = "5.0.0"
+jjwt = "0.12.3"
+streamsheet = "0.0.1-SNAPSHOT"
+
+[libraries]
+streamsheet-starter = { module = "io.github.danpung2:streamsheet-spring-boot-starter", version.ref = "streamsheet" }
+streamsheet-mongodb = { module = "io.github.danpung2:streamsheet-mongodb", version.ref = "streamsheet" }
+streamsheet-jpa = { module = "io.github.danpung2:streamsheet-jpa", version.ref = "streamsheet" }
+jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+[plugins]
+springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }
+springDependencyManagement = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinSpring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlinJpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+
+[bundles]
+jjwt = ["jjwt-api", "jjwt-impl", "jjwt-jackson"]

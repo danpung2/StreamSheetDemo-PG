@@ -1,0 +1,52 @@
+# Docker Compose 설정
+# Docker Compose Configuration
+# PostgreSQL 및 MongoDB 로컬 개발 환경
+# Local development environment for PostgreSQL and MongoDB
+
+services:
+  # PostgreSQL 데이터베이스
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: pgdemo-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pgdemo
+      POSTGRES_USER: pgdemo
+      POSTGRES_PASSWORD: pgdemo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgdemo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MongoDB 데이터베이스
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: pgdemo-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: pgdemo
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# 볼륨 정의
+# Volume definitions
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local

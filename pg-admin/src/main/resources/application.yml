@@ -1,0 +1,79 @@
+# pg-admin 서비스 설정
+# pg-admin Service Configuration
+
+spring:
+  application:
+    name: pg-admin
+  
+  # 데이터베이스 설정
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pgdemo
+    username: pgdemo
+    password: pgdemo
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # JPA 설정
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # MongoDB 설정
+  # MongoDB configuration
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/pgdemo
+  
+  # Thymeleaf 설정
+  # Thymeleaf configuration
+  thymeleaf:
+    cache: false  # 개발 시 캐시 비활성화 / Disable cache in development
+    prefix: classpath:/templates/
+    suffix: .html
+
+# 서버 설정
+# Server configuration
+server:
+  port: 8081
+
+# JWT 설정
+# JWT configuration
+# NOTE: 실제 운영 환경에서는 환경 변수로 관리하세요
+# NOTE: In production, manage these via environment variables
+security:
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-here-for-development-only-replace-in-prod}
+    access-token-expiry: 15m
+    refresh-token-expiry: 7d
+  password:
+    min-length: 8
+    require-special-char: true
+    require-uppercase: true
+    require-number: true
+  login:
+    max-failed-attempts: 5
+    lock-duration: 30m
+
+# StreamSheet 설정
+# StreamSheet configuration
+streamsheet:
+  row-access-window-size: 100
+  flush-batch-size: 1000
+  compress-temp-files: true
+
+# 로깅 설정
+# Logging configuration
+logging:
+  level:
+    com.example.pgdemo: DEBUG
+    org.springframework.security: DEBUG

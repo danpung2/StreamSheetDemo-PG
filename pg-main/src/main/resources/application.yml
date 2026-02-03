@@ -1,0 +1,69 @@
+# pg-main 서비스 설정
+# pg-main Service Configuration
+
+spring:
+  application:
+    name: pg-main
+  
+  # 데이터베이스 설정
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pgdemo
+    username: pgdemo
+    password: pgdemo
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # JPA 설정
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # MongoDB 설정
+  # MongoDB configuration
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/pgdemo
+  
+  # Batch 설정
+  # Batch configuration
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false  # 스케줄러로 실행 / Run via scheduler
+
+  # Quartz 설정
+  # Quartz configuration
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+
+# 서버 설정
+# Server configuration
+server:
+  port: 8080
+
+# StreamSheet 설정
+# StreamSheet configuration
+streamsheet:
+  row-access-window-size: 100
+  flush-batch-size: 1000
+  compress-temp-files: true
+
+# 로깅 설정
+# Logging configuration
+logging:
+  level:
+    com.example.pgdemo: DEBUG
+    org.springframework.batch: INFO
