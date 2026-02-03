@@ -190,6 +190,52 @@ interface RefundTransactionRepository : JpaRepository<RefundTransaction, UUID> {
         @Param("endDate") endDate: Instant,
         @Param("status") status: RefundStatus
     ): Long
+
+    @Query(
+        """
+        SELECT COUNT(r) FROM RefundTransaction r
+        JOIN r.payment p
+        WHERE p.merchant.id = :merchantId
+          AND r.requestedAt BETWEEN :startDate AND :endDate
+          AND r.status = :status
+        """
+    )
+    fun countRefundsByMerchantIdAndDateRange(
+        @Param("merchantId") merchantId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: RefundStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(r.refundAmount), 0) FROM RefundTransaction r
+        WHERE r.requestedAt BETWEEN :startDate AND :endDate
+          AND r.status = :status
+        """
+    )
+    fun sumRefundAmountByRequestedAtBetweenAndStatus(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: RefundStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(r.refundAmount), 0) FROM RefundTransaction r
+        JOIN r.payment p
+        JOIN p.merchant m
+        WHERE m.headquarters.id = :headquartersId
+          AND r.requestedAt BETWEEN :startDate AND :endDate
+          AND r.status = :status
+        """
+    )
+    fun sumRefundAmountByHeadquartersIdAndDateRangeAndStatus(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: RefundStatus
+    ): Long
     
     /**
      * Update refund status.
