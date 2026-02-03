@@ -4,6 +4,7 @@ import com.example.pgdemo.main.dto.PaymentRequest
 import com.example.pgdemo.main.dto.PaymentResponse
 import com.example.pgdemo.main.service.PaymentService
 import jakarta.validation.Valid
+import java.time.Instant
 import java.util.UUID
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -28,8 +30,22 @@ class PaymentController(
     }
 
     @GetMapping
-    fun listPayments(pageable: Pageable): Page<PaymentResponse> {
-        return paymentService.listPayments(pageable)
+    fun listPayments(
+        @RequestParam(name = "from", required = false) fromUtc: Instant?,
+        @RequestParam(name = "to", required = false) toUtc: Instant?,
+        @RequestParam(name = "headquartersId", required = false) headquartersId: UUID?,
+        @RequestParam(name = "merchantId", required = false) merchantId: UUID?,
+        @RequestParam(name = "status", required = false) status: com.example.pgdemo.common.domain.enum.PaymentStatus?,
+        pageable: Pageable
+    ): Page<PaymentResponse> {
+        return paymentService.listPayments(
+            pageable = pageable,
+            merchantId = merchantId,
+            headquartersId = headquartersId,
+            status = status,
+            fromUtc = fromUtc,
+            toUtc = toUtc
+        )
     }
 
     @GetMapping("/{id}")

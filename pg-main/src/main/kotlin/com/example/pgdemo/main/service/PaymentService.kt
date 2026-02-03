@@ -49,8 +49,22 @@ class PaymentService(
     }
 
     @Transactional(readOnly = true)
-    fun listPayments(pageable: Pageable): Page<PaymentResponse> {
-        return paymentTransactionRepository.findAll(pageable).map { it.toResponse() }
+    fun listPayments(
+        pageable: Pageable,
+        merchantId: UUID?,
+        headquartersId: UUID?,
+        status: PaymentStatus?,
+        fromUtc: Instant?,
+        toUtc: Instant?
+    ): Page<PaymentResponse> {
+        return paymentTransactionRepository.searchPayments(
+            merchantId = merchantId,
+            headquartersId = headquartersId,
+            status = status,
+            fromUtc = fromUtc,
+            toUtc = toUtc,
+            pageable = pageable
+        ).map { it.toResponse() }
     }
 }
 
