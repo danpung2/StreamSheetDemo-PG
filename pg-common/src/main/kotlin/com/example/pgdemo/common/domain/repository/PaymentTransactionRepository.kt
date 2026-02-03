@@ -21,6 +21,249 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 interface PaymentTransactionRepository : JpaRepository<PaymentTransaction, UUID> {
+
+    @Query(
+        """
+        SELECT p FROM PaymentTransaction p
+        JOIN p.merchant m
+        WHERE (:merchantId IS NULL OR m.id = :merchantId)
+          AND (:headquartersId IS NULL OR m.headquarters.id = :headquartersId)
+          AND (:status IS NULL OR p.status = :status)
+          AND (:fromUtc IS NULL OR p.requestedAt >= :fromUtc)
+          AND (:toUtc IS NULL OR p.requestedAt <= :toUtc)
+        """
+    )
+    fun searchPayments(
+        @Param("merchantId") merchantId: UUID?,
+        @Param("headquartersId") headquartersId: UUID?,
+        @Param("status") status: PaymentStatus?,
+        @Param("fromUtc") fromUtc: Instant?,
+        @Param("toUtc") toUtc: Instant?,
+        pageable: Pageable
+    ): Page<PaymentTransaction>
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        WHERE p.merchant.id = :merchantId
+          AND p.requestedAt BETWEEN :startDate AND :endDate
+        """
+    )
+    fun countByMerchantIdAndRequestedAtBetween(
+        @Param("merchantId") merchantId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        WHERE p.merchant.id = :merchantId
+          AND p.requestedAt BETWEEN :startDate AND :endDate
+          AND p.status = :status
+        """
+    )
+    fun countByMerchantIdAndRequestedAtBetweenAndStatus(
+        @Param("merchantId") merchantId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: PaymentStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        WHERE p.requestedAt BETWEEN :startDate AND :endDate
+        """
+    )
+    fun countByRequestedAtBetween(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        WHERE p.requestedAt BETWEEN :startDate AND :endDate
+          AND p.status = :status
+        """
+    )
+    fun countByRequestedAtBetweenAndStatus(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: PaymentStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p
+        WHERE p.requestedAt BETWEEN :startDate AND :endDate
+          AND p.status = :status
+        """
+    )
+    fun sumAmountByRequestedAtBetweenAndStatus(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: PaymentStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        JOIN p.merchant m
+        WHERE m.headquarters.id = :headquartersId
+          AND p.requestedAt BETWEEN :startDate AND :endDate
+        """
+    )
+    fun countByHeadquartersIdAndRequestedAtBetween(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM PaymentTransaction p
+        JOIN p.merchant m
+        WHERE m.headquarters.id = :headquartersId
+          AND p.requestedAt BETWEEN :startDate AND :endDate
+          AND p.status = :status
+        """
+    )
+    fun countByHeadquartersIdAndRequestedAtBetweenAndStatus(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: PaymentStatus
+    ): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p
+        JOIN p.merchant m
+        WHERE m.headquarters.id = :headquartersId
+          AND p.requestedAt BETWEEN :startDate AND :endDate
+          AND p.status = :status
+        """
+    )
+    fun sumAmountByHeadquartersIdAndRequestedAtBetweenAndStatus(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: PaymentStatus
+    ): Long
+
+    @Query(
+        value = """
+        SELECT COALESCE(
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (COALESCE(completed_at, processed_at, requested_at) - requested_at)) * 1000
+          ),
+          0
+        )
+        FROM payment_transaction
+        WHERE requested_at BETWEEN :startDate AND :endDate
+        """,
+        nativeQuery = true
+    )
+    fun p95DelayMsByRequestedAtBetween(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Double
+
+    @Query(
+        value = """
+        SELECT COALESCE(
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (COALESCE(p.completed_at, p.processed_at, p.requested_at) - p.requested_at)) * 1000
+          ),
+          0
+        )
+        FROM payment_transaction p
+        JOIN merchant m ON m.id = p.merchant_id
+        WHERE m.headquarters_id = :headquartersId
+          AND p.requested_at BETWEEN :startDate AND :endDate
+        """,
+        nativeQuery = true
+    )
+    fun p95DelayMsByHeadquartersIdAndRequestedAtBetween(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Double
+
+    @Query(
+        value = """
+        SELECT COALESCE(
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (COALESCE(completed_at, processed_at, requested_at) - requested_at)) * 1000
+          ),
+          0
+        )
+        FROM payment_transaction
+        WHERE merchant_id = :merchantId
+          AND requested_at BETWEEN :startDate AND :endDate
+        """,
+        nativeQuery = true
+    )
+    fun p95DelayMsByMerchantIdAndRequestedAtBetween(
+        @Param("merchantId") merchantId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant
+    ): Double
+
+    interface MerchantFailureAgg {
+        fun getMerchantId(): UUID
+        fun getTotalCount(): Long
+        fun getFailedCount(): Long
+    }
+
+    @Query(
+        value = """
+        SELECT
+          p.merchant_id AS merchantId,
+          COUNT(*) AS totalCount,
+          SUM(CASE WHEN p.status = 'PAYMENT_FAILED' THEN 1 ELSE 0 END) AS failedCount
+        FROM payment_transaction p
+        WHERE p.requested_at BETWEEN :startDate AND :endDate
+        GROUP BY p.merchant_id
+        HAVING COUNT(*) >= :minCount
+        ORDER BY (SUM(CASE WHEN p.status = 'PAYMENT_FAILED' THEN 1 ELSE 0 END)::float / COUNT(*)) DESC
+        LIMIT :limit
+        """,
+        nativeQuery = true
+    )
+    fun topMerchantsByFailureRate(
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("minCount") minCount: Long,
+        @Param("limit") limit: Int
+    ): List<MerchantFailureAgg>
+
+    @Query(
+        value = """
+        SELECT
+          p.merchant_id AS merchantId,
+          COUNT(*) AS totalCount,
+          SUM(CASE WHEN p.status = 'PAYMENT_FAILED' THEN 1 ELSE 0 END) AS failedCount
+        FROM payment_transaction p
+        JOIN merchant m ON m.id = p.merchant_id
+        WHERE m.headquarters_id = :headquartersId
+          AND p.requested_at BETWEEN :startDate AND :endDate
+        GROUP BY p.merchant_id
+        HAVING COUNT(*) >= :minCount
+        ORDER BY (SUM(CASE WHEN p.status = 'PAYMENT_FAILED' THEN 1 ELSE 0 END)::float / COUNT(*)) DESC
+        LIMIT :limit
+        """,
+        nativeQuery = true
+    )
+    fun topMerchantsByFailureRateForHeadquarters(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("minCount") minCount: Long,
+        @Param("limit") limit: Int
+    ): List<MerchantFailureAgg>
     
     /**
      * Find payment transaction by order ID.
