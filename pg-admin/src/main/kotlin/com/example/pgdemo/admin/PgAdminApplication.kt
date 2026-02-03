@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.runApplication
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
+import org.springframework.scheduling.annotation.EnableScheduling
 
 /**
  * PG Admin Application
@@ -15,6 +16,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @EnableJpaRepositories(basePackages = ["com.example.pgdemo.common.domain.repository"])
 @EnableMongoRepositories(basePackages = ["com.example.pgdemo.common.domain.repository"])
 @EntityScan(basePackages = ["com.example.pgdemo.common.domain.entity", "com.example.pgdemo.common.domain.document"])
+@EnableScheduling
 class PgAdminApplication
 
 fun main(args: Array<String>) {
