@@ -1,19 +1,57 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
   th:with="pageTitle='Payments'">
-<section class="page">
-  <div th:replace="fragments/header :: header('Payments')"></div>
-  <div class="shell">
-    <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
-    <main class="main">
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Payments list</h2>
-          <div class="filters">
-            <span class="chip">Last 24 hours</span>
-            <span class="chip muted">Status: Captured</span>
+  <section class="page">
+    <div th:replace="fragments/header :: header('Payments')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
+      <main class="main">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Payments list</h2>
+            <form class="filters" method="get" action="/admin/payments">
+              <input type="datetime-local" name="from" th:value="${fromUtcLocal}" />
+              <input type="datetime-local" name="to" th:value="${toUtcLocal}" />
+
+              <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
+                <option value="" th:selected="${headquartersId == ''}">All HQ</option>
+                <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}" th:selected="${hq.id == headquartersId}">-</option>
+              </select>
+
+              <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
+                <option value="" th:selected="${merchantId == ''}">All Merchants</option>
+                <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
+              </select>
+
+              <select name="status">
+                <option value="" th:selected="${status == ''}">All Status</option>
+                <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-</option>
+              </select>
+
+              <select name="size">
+                <option value="20" th:selected="${pageSize == 20}">20</option>
+                <option value="50" th:selected="${pageSize == 50}">50</option>
+                <option value="100" th:selected="${pageSize == 100}">100</option>
+              </select>
+
+              <button class="button ghost" type="submit">Apply</button>
+            </form>
           </div>
-        </div>
+
+          <div class="filters" th:if="${filterError != null}">
+            <span class="chip danger" th:text="${filterError}">Invalid filter</span>
+          </div>
+          <div class="filters" th:if="${loadError != null}">
+            <span class="chip danger">Failed to load payments.</span>
+          </div>
+
+          <div class="filters">
+            <button class="button ghost" type="button" data-preset="1H">1H</button>
+            <button class="button ghost" type="button" data-preset="6H">6H</button>
+            <button class="button ghost" type="button" data-preset="24H">24H</button>
+            <button class="button ghost" type="button" data-preset="7D">7D</button>
+            <button class="button ghost" type="button" data-preset="30D">30D</button>
+          </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -50,10 +88,42 @@
           <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
             1 / 1</span>
           <a class="button ghost" th:if="${hasPrev}"
-            th:href="@{/admin/payments(page=${prevPage},size=${pageSize})}">Prev</a>
+            th:href="@{/admin/payments(page=${prevPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Prev</a>
           <a class="button ghost" th:if="${hasNext}"
-            th:href="@{/admin/payments(page=${nextPage},size=${pageSize})}">Next</a>
+            th:href="@{/admin/payments(page=${nextPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Next</a>
         </div>
+
+        <script>
+          (function () {
+            function pad2(n) { return String(n).padStart(2, '0'); }
+            function formatUtcLocal(dt) {
+              return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate()) + 'T' + pad2(dt.getUTCHours()) + ':' + pad2(dt.getUTCMinutes());
+            }
+            function applyPreset(preset) {
+              var form = document.querySelector('form.filters[action="/admin/payments"]');
+              if (!form) return;
+              var fromInput = form.querySelector('input[name="from"]');
+              var toInput = form.querySelector('input[name="to"]');
+              if (!fromInput || !toInput) return;
+
+              var now = new Date();
+              var from = new Date(now.getTime());
+              if (preset === '1H') from = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+              if (preset === '6H') from = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+              if (preset === '24H') from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+              if (preset === '7D') from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              if (preset === '30D') from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+              fromInput.value = formatUtcLocal(from);
+              toInput.value = formatUtcLocal(now);
+              form.submit();
+            }
+
+            document.querySelectorAll('button[data-preset]').forEach(function (btn) {
+              btn.addEventListener('click', function () { applyPreset(btn.getAttribute('data-preset')); });
+            });
+          })();
+        </script>
       </section>
     </main>
   </div>

@@ -2,13 +2,21 @@ package com.example.pgdemo.admin.view
 
 import com.example.pgdemo.admin.client.PgMainApiClient
 import com.example.pgdemo.admin.client.PaymentResponse
-import com.example.pgdemo.admin.export.ExportHistoryStore
+import com.example.pgdemo.admin.export.PaymentExportJobService
+import com.example.pgdemo.admin.tenant.TenantContext
+import com.example.pgdemo.common.domain.enum.ExportJobStatus
 import com.example.pgdemo.common.domain.enum.PaymentStatus
+import com.example.pgdemo.common.domain.enum.TenantType
+import com.example.pgdemo.common.domain.repository.HeadquartersRepository
+import com.example.pgdemo.common.domain.repository.MerchantRepository
 import java.text.NumberFormat
+import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
@@ -21,21 +29,175 @@ import org.springframework.web.client.RestClientException
 @RequestMapping("/admin")
 class PaymentViewController(
     private val pgMainApiClient: PgMainApiClient,
-    private val exportHistoryStore: ExportHistoryStore
+    private val paymentExportJobService: PaymentExportJobService,
+    private val headquartersRepository: HeadquartersRepository,
+    private val merchantRepository: MerchantRepository
 ) {
 
     @GetMapping("/payments")
     fun payments(
         @RequestParam(name = "page", defaultValue = "0") page: Int,
         @RequestParam(name = "size", defaultValue = "20") size: Int,
+        @RequestParam(name = "from", required = false) fromUtc: String?,
+        @RequestParam(name = "to", required = false) toUtc: String?,
+        @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
+        @RequestParam(name = "merchantId", required = false) merchantId: String?,
+        @RequestParam(name = "status", required = false) status: PaymentStatus?,
         model: Model
     ): String {
         model.addAttribute("pageTitle", "Payments")
         val safePage = page.coerceAtLeast(0)
         val safeSize = size.coerceIn(1, 200)
+
+        val tenantInfo = TenantContext.require()
+
+        var filterError: String? = null
+
+        val now = Instant.now()
+        var resolvedFromUtc = now.minus(Duration.ofHours(24))
+        var resolvedToUtc = now
+        try {
+            val parsedFromUtc = fromUtc
+                ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+            val parsedToUtc = toUtc
+                ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+            resolvedToUtc = parsedToUtc ?: now
+            resolvedFromUtc = parsedFromUtc ?: now.minus(Duration.ofHours(24))
+        } catch (ex: Exception) {
+            filterError = "Invalid from/to format"
+        }
+
+        val maxDays = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR -> 90L
+            TenantType.HEADQUARTERS, TenantType.MERCHANT -> 30L
+        }
+
+        if (resolvedFromUtc.isAfter(resolvedToUtc)) {
+            filterError = "from must be <= to"
+            resolvedFromUtc = now.minus(Duration.ofHours(24))
+            resolvedToUtc = now
+        }
+        if (Duration.between(resolvedFromUtc, resolvedToUtc) > Duration.ofDays(maxDays)) {
+            filterError = "date range must be within $maxDays days"
+            resolvedFromUtc = now.minus(Duration.ofHours(24))
+            resolvedToUtc = now
+        }
+
+        val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+        val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+
+        val resolvedHeadquartersId = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR -> parsedHeadquartersId
+            TenantType.HEADQUARTERS -> tenantInfo.tenantId
+            TenantType.MERCHANT -> null
+        }
+        var resolvedMerchantId = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR, TenantType.HEADQUARTERS -> parsedMerchantId
+            TenantType.MERCHANT -> tenantInfo.tenantId
+        }
+
+        if (tenantInfo.tenantType == TenantType.MERCHANT) {
+            if (parsedHeadquartersId != null) {
+                filterError = "Merchant cannot filter by headquarters"
+            }
+            if (parsedMerchantId != null && parsedMerchantId != tenantInfo.tenantId) {
+                filterError = "Merchant cannot filter other merchants"
+            }
+        }
+        if (tenantInfo.tenantType == TenantType.HEADQUARTERS) {
+            if (parsedHeadquartersId != null && parsedHeadquartersId != tenantInfo.tenantId) {
+                filterError = "Headquarters cannot filter other headquarters"
+            }
+        }
+
+        if (resolvedMerchantId != null && (tenantInfo.tenantType == TenantType.OPERATOR || tenantInfo.tenantType == TenantType.HEADQUARTERS)) {
+            val merchant = merchantRepository.findById(resolvedMerchantId)
+                .orElseThrow { IllegalArgumentException("Merchant not found") }
+            val merchantHeadquartersId = merchant.headquarters?.id
+            when (tenantInfo.tenantType) {
+                TenantType.OPERATOR -> {
+                    if (resolvedHeadquartersId != null && merchantHeadquartersId != resolvedHeadquartersId) {
+                        filterError = "Merchant is not under the selected headquarters"
+                        resolvedMerchantId = null
+                    }
+                }
+                TenantType.HEADQUARTERS -> {
+                    if (tenantInfo.tenantId == null) {
+                        filterError = "Headquarters tenant requires tenantId"
+                    }
+                    if (merchantHeadquartersId != tenantInfo.tenantId) {
+                        filterError = "Headquarters cannot access other headquarters merchants"
+                        resolvedMerchantId = null
+                    }
+                }
+                TenantType.MERCHANT -> Unit
+            }
+        }
+
+        if (filterError != null) {
+            model.addAttribute("filterError", filterError)
+        }
+
+        val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+            .withZone(ZoneOffset.UTC)
+        model.addAttribute("fromUtcLocal", inputFormatter.format(resolvedFromUtc))
+        model.addAttribute("toUtcLocal", inputFormatter.format(resolvedToUtc))
+        model.addAttribute("headquartersId", resolvedHeadquartersId?.toString() ?: "")
+        model.addAttribute("merchantId", resolvedMerchantId?.toString() ?: "")
+        model.addAttribute("status", status?.name ?: "")
+        model.addAttribute("statusOptions", PaymentStatus.values().map { it.name })
+
+        val headquartersOptions = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR -> {
+                headquartersRepository.findByStatus("ACTIVE")
+                    .take(200)
+                    .mapNotNull { hq ->
+                        val id = hq.id
+                        if (id == null) null else mapOf("id" to id.toString(), "name" to hq.name)
+                    }
+            }
+            TenantType.HEADQUARTERS -> {
+                tenantInfo.tenantId?.let { hqId ->
+                    val hq = headquartersRepository.findById(hqId).orElse(null)
+                    if (hq?.id != null) listOf(mapOf("id" to hq.id.toString(), "name" to hq.name)) else emptyList()
+                } ?: emptyList()
+            }
+            TenantType.MERCHANT -> emptyList()
+        }
+        model.addAttribute("headquartersOptions", headquartersOptions)
+
+        val merchantOptions = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR, TenantType.HEADQUARTERS -> {
+                val selectedHqId = when (tenantInfo.tenantType) {
+                    TenantType.HEADQUARTERS -> tenantInfo.tenantId
+                    else -> resolvedHeadquartersId
+                }
+                if (selectedHqId != null) {
+                    merchantRepository.findByHeadquartersId(selectedHqId, PageRequest.of(0, 200))
+                        .content
+                        .mapNotNull { m ->
+                            val id = m.id
+                            if (id == null) null else mapOf("id" to id.toString(), "name" to m.name)
+                        }
+                } else {
+                    emptyList()
+                }
+            }
+            TenantType.MERCHANT -> emptyList()
+        }
+        model.addAttribute("merchantOptions", merchantOptions)
+
         var loadError = false
         val paymentPage = try {
-            pgMainApiClient.listPayments(safePage, safeSize)
+            pgMainApiClient.listPayments(
+                page = safePage,
+                size = safeSize,
+                fromUtc = resolvedFromUtc,
+                toUtc = resolvedToUtc,
+                headquartersId = resolvedHeadquartersId,
+                merchantId = resolvedMerchantId,
+                status = status
+            )
         } catch (ex: RestClientException) {
             loadError = true
             null
@@ -60,12 +222,8 @@ class PaymentViewController(
         model.addAttribute("prevPage", (currentPage - 1).coerceAtLeast(0))
         model.addAttribute("nextPage", currentPage + 1)
 
-        val merchantsById = try {
-            pgMainApiClient.listMerchants(0, 200)?.content.orEmpty().associateBy { it.id }
-        } catch (ex: RestClientException) {
-            loadError = true
-            emptyMap()
-        }
+        val merchantsById = merchantRepository.findByIdIn(paymentResponses.map { it.merchantId }.distinct())
+            .associateBy { it.id }
         model.addAttribute(
             "payments",
             paymentResponses.map { payment ->
@@ -134,22 +292,142 @@ class PaymentViewController(
     }
 
     @GetMapping("/exports/payments")
-    fun paymentExports(model: Model): String {
+    fun paymentExports(
+        @RequestParam(name = "page", defaultValue = "0") page: Int,
+        @RequestParam(name = "size", defaultValue = "20") size: Int,
+        @RequestParam(name = "fromUtc", required = false) fromUtc: String?,
+        @RequestParam(name = "toUtc", required = false) toUtc: String?,
+        @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
+        @RequestParam(name = "merchantId", required = false) merchantId: String?,
+        @RequestParam(name = "status", required = false) status: ExportJobStatus?,
+        model: Model
+    ): String {
         model.addAttribute("pageTitle", "Exports")
+
+        val safePage = page.coerceAtLeast(0)
+        val safeSize = size.coerceIn(1, 200)
+
+        val now = Instant.now()
+
+        val parsedFromUtc = fromUtc
+            ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+        val parsedToUtc = toUtc
+            ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+
+        val resolvedToUtc = parsedToUtc ?: now
+        val resolvedFromUtc = parsedFromUtc ?: now.minus(Duration.ofHours(24))
+
+        val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+            .withZone(ZoneOffset.UTC)
+        model.addAttribute("fromUtcLocal", inputFormatter.format(resolvedFromUtc))
+        model.addAttribute("toUtcLocal", inputFormatter.format(resolvedToUtc))
+
+        val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
+        val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
+
+        val jobPage = paymentExportJobService.listJobs(
+            pageable = PageRequest.of(safePage, safeSize),
+            fromUtc = resolvedFromUtc,
+            toUtc = resolvedToUtc,
+            headquartersId = parsedHeadquartersId,
+            merchantId = parsedMerchantId,
+            status = status
+        )
+
+        val exportJobs = jobPage.content
         model.addAttribute(
             "exportJobs",
-            exportHistoryStore.listPaymentExports(50).map { item ->
+            exportJobs.map { job ->
                 mapOf(
-                    "id" to item.id,
-                    "range" to item.range,
-                    "requestedBy" to item.requestedBy,
-                    "status" to item.status,
-                    "statusClass" to item.statusClass,
-                    "queuedAt" to formatInstant(item.queuedAt)
+                    "jobId" to job.jobId,
+                    "range" to "${formatInstant(job.fromUtc)} — ${formatInstant(job.toUtc)}",
+                    "requestedBy" to job.requestedBy,
+                    "status" to job.status.name,
+                    "statusClass" to exportStatusClass(job.status),
+                    "progress" to (job.progressLabel ?: "-"),
+                    "queuedAt" to formatInstant(job.queuedAt),
+                    "startedAt" to formatInstant(job.startedAt),
+                    "finishedAt" to formatInstant(job.finishedAt),
+                    "canDownload" to (job.status == ExportJobStatus.COMPLETED),
+                    "canCancel" to (job.status == ExportJobStatus.QUEUED),
+                    "hasError" to (job.status == ExportJobStatus.FAILED),
+                    "errorSummary" to (job.errorSummary ?: "-")
                 )
             }
         )
+
+        model.addAttribute("fromUtc", resolvedFromUtc)
+        model.addAttribute("toUtc", resolvedToUtc)
+        model.addAttribute("headquartersId", parsedHeadquartersId?.toString() ?: "")
+        model.addAttribute("merchantId", parsedMerchantId?.toString() ?: "")
+        model.addAttribute("status", status?.name ?: "")
+        model.addAttribute("statusOptions", ExportJobStatus.values().map { it.name })
+
+        val tenantInfo = TenantContext.require()
+        val headquartersOptions = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR -> {
+                headquartersRepository.findByStatus("ACTIVE")
+                    .take(200)
+                    .mapNotNull { hq ->
+                        val id = hq.id
+                        if (id == null) null else mapOf("id" to id.toString(), "name" to hq.name)
+                    }
+            }
+            TenantType.HEADQUARTERS -> {
+                tenantInfo.tenantId?.let { hqId ->
+                    val hq = headquartersRepository.findById(hqId).orElse(null)
+                    if (hq?.id != null) listOf(mapOf("id" to hq.id.toString(), "name" to hq.name)) else emptyList()
+                } ?: emptyList()
+            }
+            TenantType.MERCHANT -> emptyList()
+        }
+        model.addAttribute("headquartersOptions", headquartersOptions)
+
+        val merchantOptions = when (tenantInfo.tenantType) {
+            TenantType.OPERATOR, TenantType.HEADQUARTERS -> {
+                val selectedHqId = when (tenantInfo.tenantType) {
+                    TenantType.HEADQUARTERS -> tenantInfo.tenantId
+                    else -> parsedHeadquartersId
+                }
+                if (selectedHqId != null) {
+                    merchantRepository.findByHeadquartersId(selectedHqId, PageRequest.of(0, 200))
+                        .content
+                        .mapNotNull { merchant ->
+                            val id = merchant.id
+                            if (id == null) null else mapOf("id" to id.toString(), "name" to merchant.name)
+                        }
+                } else {
+                    emptyList()
+                }
+            }
+            TenantType.MERCHANT -> emptyList()
+        }
+        model.addAttribute("merchantOptions", merchantOptions)
+
+        model.addAttribute("pageNumber", jobPage.number)
+        model.addAttribute("pageSize", jobPage.size)
+        model.addAttribute("totalElements", jobPage.totalElements)
+        model.addAttribute("totalPages", jobPage.totalPages)
+        model.addAttribute("hasPrev", jobPage.hasPrevious())
+        model.addAttribute("hasNext", jobPage.hasNext())
+        model.addAttribute("prevPage", (jobPage.number - 1).coerceAtLeast(0))
+        model.addAttribute("nextPage", jobPage.number + 1)
+
+        model.addAttribute(
+            "autoRefresh",
+            exportJobs.any { it.status == ExportJobStatus.QUEUED || it.status == ExportJobStatus.RUNNING }
+        )
+
         return "exports/payments"
+    }
+
+    private fun exportStatusClass(status: ExportJobStatus): String {
+        return when (status) {
+            ExportJobStatus.COMPLETED -> "success"
+            ExportJobStatus.FAILED -> "danger"
+            ExportJobStatus.CANCELLED -> "muted"
+            ExportJobStatus.QUEUED, ExportJobStatus.RUNNING -> "warning"
+        }
     }
 
     private fun buildEvents(payment: PaymentResponse?): List<Map<String, String>> {

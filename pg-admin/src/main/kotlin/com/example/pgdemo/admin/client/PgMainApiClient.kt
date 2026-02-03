@@ -9,7 +9,15 @@ import org.springframework.web.client.RestClient
 class PgMainApiClient(
     private val restClient: RestClient
 ) {
-    fun listPayments(page: Int, size: Int): PageResponse<PaymentResponse>? {
+    fun listPayments(
+        page: Int,
+        size: Int,
+        fromUtc: java.time.Instant?,
+        toUtc: java.time.Instant?,
+        headquartersId: UUID?,
+        merchantId: UUID?,
+        status: com.example.pgdemo.common.domain.enum.PaymentStatus?
+    ): PageResponse<PaymentResponse>? {
         val responseType = object : ParameterizedTypeReference<PageResponse<PaymentResponse>>() {}
         return restClient.get()
             .uri { builder ->
@@ -17,6 +25,13 @@ class PgMainApiClient(
                     .queryParam("page", page)
                     .queryParam("size", size)
                     .queryParam("sort", "requestedAt,desc")
+                    .apply {
+                        fromUtc?.let { queryParam("from", it) }
+                        toUtc?.let { queryParam("to", it) }
+                        headquartersId?.let { queryParam("headquartersId", it) }
+                        merchantId?.let { queryParam("merchantId", it) }
+                        status?.let { queryParam("status", it) }
+                    }
                     .build()
             }
             .retrieve()
