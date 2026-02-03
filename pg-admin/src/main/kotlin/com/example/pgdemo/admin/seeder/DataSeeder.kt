@@ -260,25 +260,26 @@ class DataSeeder(
                 
                 // requestedAt is set by @CreationTimestamp, but we need to manually set for consistent data
                 // requestedAt는 @CreationTimestamp로 설정되지만, 일관된 데이터를 위해 수동 설정 필요
+                requestedAt = baseTime
                 
                 when (status) {
                     PaymentStatus.PAYMENT_COMPLETED -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
-                        completedAt = baseTime.plus(Random.nextLong(5, 30), ChronoUnit.SECONDS)
+                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
+                        completedAt = processedAt!!.plus(Random.nextLong(1, 25), ChronoUnit.SECONDS)
                     }
                     PaymentStatus.PAYMENT_FAILED -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
+                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
                         failureReason = listOf(
                             "잔액 부족", "카드 한도 초과", "통신 오류", 
                             "결제 거절", "유효하지 않은 카드"
                         ).random()
                     }
                     PaymentStatus.PAYMENT_PROCESSING -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 3), ChronoUnit.SECONDS)
+                        processedAt = requestedAt.plus(Random.nextLong(1, 3), ChronoUnit.SECONDS)
                     }
                     PaymentStatus.PAYMENT_CANCELLED -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
-                        completedAt = baseTime.plus(Random.nextLong(5, 60), ChronoUnit.SECONDS)
+                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
+                        completedAt = processedAt!!.plus(Random.nextLong(1, 55), ChronoUnit.SECONDS)
                     }
                     else -> { /* PAYMENT_PENDING - no additional timestamps */ }
                 }
