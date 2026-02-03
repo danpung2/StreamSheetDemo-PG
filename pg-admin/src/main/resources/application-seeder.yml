@@ -1,0 +1,40 @@
+# pg-admin 데이터 시딩 프로필 설정
+# pg-admin Data Seeding Profile Configuration
+#
+# 사용법 / Usage:
+# ./gradlew :pg-admin:bootRun --args='--spring.profiles.active=seeder'
+# 또는 / or:
+# java -jar pg-admin.jar --spring.profiles.active=seeder
+
+spring:
+  # JPA 배치 삽입 최적화 설정
+  # JPA batch insert optimization settings
+  jpa:
+    hibernate:
+      ddl-auto: update  # 시딩 시에는 스키마 자동 생성/갱신 허용 / Allow schema auto-creation during seeding
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500  # 배치당 삽입 건수 / Records per batch insert
+          batch_versioned_data: true
+        order_inserts: true  # INSERT 문 순서 최적화 / Optimize INSERT statement ordering
+        order_updates: true  # UPDATE 문 순서 최적화 / Optimize UPDATE statement ordering
+        generate_statistics: true  # 성능 통계 생성 / Generate performance statistics
+  
+  # HikariCP 연결 풀 확장
+  # HikariCP connection pool expansion for seeding
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 60000
+      max-lifetime: 1800000
+
+# 로깅 설정 - 시딩 진행 상황 확인용
+# Logging configuration - for seeding progress monitoring
+logging:
+  level:
+    com.example.pgdemo.admin.seeder: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.transaction: WARN
