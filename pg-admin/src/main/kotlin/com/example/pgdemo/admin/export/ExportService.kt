@@ -8,6 +8,7 @@ import com.streamsheet.core.exporter.ExcelExporter
 import com.streamsheet.mongodb.MongoStreamingDataSource
 import com.streamsheet.core.schema.AnnotationExcelSchema
 import java.io.OutputStream
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
@@ -29,14 +30,36 @@ class ExportService(
         headquartersId: UUID?,
         merchantId: UUID?
     ) {
+        val fromUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+        val toUtcExclusive = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()
+        exportPayments(
+            fromUtc = fromUtc,
+            toUtcExclusive = toUtcExclusive,
+            outputStream = outputStream,
+            headquartersId = headquartersId,
+            merchantId = merchantId
+        )
+    }
+
+    fun exportPayments(
+        fromUtc: Instant,
+        toUtcExclusive: Instant,
+        outputStream: OutputStream,
+        headquartersId: UUID?,
+        merchantId: UUID?
+    ) {
         val tenantInfo = TenantContext.require()
         tenantPermissionMatrix.requireExport(tenantInfo, TenantPermissionMatrix.Resource.PAYMENT)
 
         validateRequestedFilters(tenantInfo.tenantType, tenantInfo.tenantId, headquartersId, merchantId)
 
+        require(toUtcExclusive.isAfter(fromUtc)) {
+            "toUtc must be after fromUtc"
+        }
+
         val criteria = Criteria.where("paymentDate")
-            .gte(startDate.atStartOfDay(ZoneOffset.UTC).toInstant())
-            .lt(endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant())
+            .gte(fromUtc)
+            .lt(toUtcExclusive)
 
         when (tenantInfo.tenantType) {
             TenantType.OPERATOR -> {
