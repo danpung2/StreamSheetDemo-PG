@@ -178,4 +178,23 @@ interface MerchantRepository : JpaRepository<Merchant, UUID> {
      * @return list of merchants / 업체 목록
      */
     fun findByIdIn(ids: List<UUID>): List<Merchant>
+
+    @Query(
+        """
+        SELECT m FROM Merchant m
+        WHERE (:headquartersId IS NULL OR m.headquarters.id = :headquartersId)
+          AND (:status IS NULL OR m.status = :status)
+          AND (
+            :merchantQuery IS NULL OR
+            LOWER(m.name) LIKE LOWER(CONCAT('%', :merchantQuery, '%')) OR
+            LOWER(m.merchantCode) LIKE LOWER(CONCAT('%', :merchantQuery, '%'))
+          )
+        """
+    )
+    fun searchMerchants(
+        @Param("headquartersId") headquartersId: UUID?,
+        @Param("status") status: String?,
+        @Param("merchantQuery") merchantQuery: String?,
+        pageable: Pageable
+    ): Page<Merchant>
 }
