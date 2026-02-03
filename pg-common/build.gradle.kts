@@ -1,5 +1,19 @@
 plugins {
     kotlin("plugin.jpa")
+    kotlin("plugin.allopen")
+    kotlin("plugin.noarg")
+}
+
+allOpen {
+    annotation("jakarta.persistence.Entity")
+    annotation("jakarta.persistence.MappedSuperclass")
+    annotation("jakarta.persistence.Embeddable")
+}
+
+noArg {
+    annotation("jakarta.persistence.Entity")
+    annotation("jakarta.persistence.MappedSuperclass")
+    annotation("jakarta.persistence.Embeddable")
 }
 
 // 공통 모듈 - 엔티티, Repository, DTO 등 공유 코드

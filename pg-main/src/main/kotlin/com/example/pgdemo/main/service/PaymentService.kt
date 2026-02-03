@@ -33,6 +33,7 @@ class PaymentService(
             this.amount = amount
             paymentMethod = request.paymentMethod
             status = PaymentStatus.PAYMENT_COMPLETED
+            requestedAt = now
             processedAt = now
             completedAt = now
         }

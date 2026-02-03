@@ -9,6 +9,7 @@ import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import org.springframework.batch.item.ItemProcessor
+import org.springframework.batch.item.ItemReader
 import org.springframework.batch.item.ItemWriter
 import org.springframework.batch.item.data.RepositoryItemReader
 import org.springframework.batch.item.data.builder.RepositoryItemReaderBuilder
@@ -18,13 +19,13 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 
 @Configuration
-class PaymentViewSyncJob(
+class PaymentViewSyncJobConfig(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val refundTransactionRepository: RefundTransactionRepository,
     private val mongoTemplate: MongoTemplate
 ) {
     @Bean
-    fun paymentTransactionReader(): RepositoryItemReader<PaymentTransaction> {
+    fun paymentTransactionReader(): ItemReader<PaymentTransaction> {
         return RepositoryItemReaderBuilder<PaymentTransaction>()
             .name("paymentTransactionReader")
             .repository(paymentTransactionRepository)

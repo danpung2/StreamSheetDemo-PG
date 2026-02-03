@@ -29,6 +29,7 @@ class RefundService(
             this.refundAmount = refundAmount
             refundReason = request.refundReason
             status = RefundStatus.REFUND_COMPLETED
+            requestedAt = now
             processedAt = now
             completedAt = now
         }
