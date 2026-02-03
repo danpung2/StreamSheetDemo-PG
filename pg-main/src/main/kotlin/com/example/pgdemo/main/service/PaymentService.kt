@@ -4,6 +4,7 @@ import com.example.pgdemo.common.domain.entity.PaymentTransaction
 import com.example.pgdemo.common.domain.enum.PaymentStatus
 import com.example.pgdemo.common.domain.repository.MerchantRepository
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
+import com.example.pgdemo.common.domain.repository.spec.PaymentTransactionSpecifications
 import com.example.pgdemo.main.dto.PaymentRequest
 import com.example.pgdemo.main.dto.PaymentResponse
 import com.example.pgdemo.main.exception.ResourceNotFoundException
@@ -57,14 +58,16 @@ class PaymentService(
         fromUtc: Instant?,
         toUtc: Instant?
     ): Page<PaymentResponse> {
-        return paymentTransactionRepository.searchPayments(
+        val spec = PaymentTransactionSpecifications.search(
             merchantId = merchantId,
             headquartersId = headquartersId,
             status = status,
             fromUtc = fromUtc,
-            toUtc = toUtc,
-            pageable = pageable
-        ).map { it.toResponse() }
+            toUtc = toUtc
+        )
+
+        return paymentTransactionRepository.findAll(spec, pageable)
+            .map { it.toResponse() }
     }
 }
 

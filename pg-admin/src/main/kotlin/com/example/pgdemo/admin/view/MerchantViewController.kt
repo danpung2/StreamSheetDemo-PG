@@ -8,6 +8,7 @@ import com.example.pgdemo.common.domain.repository.HeadquartersRepository
 import com.example.pgdemo.common.domain.repository.MerchantRepository
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
+import com.example.pgdemo.common.domain.repository.spec.MerchantSpecifications
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
@@ -83,12 +84,14 @@ class MerchantViewController(
                 }
                 org.springframework.data.domain.PageImpl(items, PageRequest.of(0, 50), items.size.toLong())
             }
-            else -> merchantRepository.searchMerchants(
-                headquartersId = resolvedHeadquartersId,
-                status = resolvedStatus,
-                merchantQuery = resolvedQuery,
-                pageable = pageable
-            )
+            else -> {
+                val spec = MerchantSpecifications.search(
+                    headquartersId = resolvedHeadquartersId,
+                    status = resolvedStatus,
+                    merchantQuery = resolvedQuery
+                )
+                merchantRepository.findAll(spec, pageable)
+            }
         }
 
         val riskFrom = Instant.now().minus(Duration.ofDays(7))
