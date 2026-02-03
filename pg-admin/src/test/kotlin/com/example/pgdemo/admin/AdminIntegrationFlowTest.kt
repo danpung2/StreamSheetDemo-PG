@@ -39,11 +39,11 @@ import org.springframework.security.crypto.password.PasswordEncoder
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "spring.main.allow-bean-definition-overriding=true",
-        "spring.datasource.url=jdbc:postgresql://localhost:5432/streamsheet_demo",
-        "spring.datasource.username=user",
-        "spring.datasource.password=password",
+        "spring.datasource.url=jdbc:postgresql://localhost:5432/pgdemo",
+        "spring.datasource.username=pgdemo",
+        "spring.datasource.password=pgdemo",
         "spring.jpa.hibernate.ddl-auto=update",
-        "spring.data.mongodb.uri=mongodb://localhost:27017/streamsheet_demo"
+        "spring.data.mongodb.uri=mongodb://localhost:27017/pgdemo"
     ]
 )
 @Import(AdminIntegrationFlowTest.TestJpaConfig::class)
