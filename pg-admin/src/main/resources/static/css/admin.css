@@ -290,6 +290,21 @@ th {
   color: var(--danger);
 }
 
+.alert {
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 600;
+  background: rgba(246, 209, 139, 0.25);
+  border: 1px solid rgba(246, 209, 139, 0.55);
+  color: #7a4d0b;
+}
+
+.alert.danger {
+  background: rgba(163, 76, 66, 0.12);
+  border: 1px solid rgba(163, 76, 66, 0.25);
+  color: var(--danger);
+}
+
 .button {
   border: none;
   border-radius: 12px;

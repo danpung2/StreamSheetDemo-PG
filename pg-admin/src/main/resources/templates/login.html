@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
   th:with="pageTitle='Admin Login'">
-<section class="page login">
+  <section class="page login">
   <div class="login-card">
     <div class="login-header">
       <p class="eyebrow">PG Admin Console</p>
       <h1>Sign in</h1>
       <p class="caption">Use your administrator credentials to continue.</p>
     </div>
+    <div class="alert danger" th:if="${loginError}" th:text="${loginError}" role="alert"></div>
     <form class="login-form" method="post" action="/login">
       <label>
         <span>Email address</span>
