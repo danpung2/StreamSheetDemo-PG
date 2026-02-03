@@ -6,7 +6,7 @@ import com.example.pgdemo.admin.export.ExportHistoryStore
 import com.example.pgdemo.common.domain.enum.PaymentStatus
 import java.text.NumberFormat
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.stereotype.Controller
@@ -14,6 +14,7 @@ import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.client.RestClientException
 
 @Controller
@@ -24,15 +25,40 @@ class PaymentViewController(
 ) {
 
     @GetMapping("/payments")
-    fun payments(model: Model): String {
+    fun payments(
+        @RequestParam(name = "page", defaultValue = "0") page: Int,
+        @RequestParam(name = "size", defaultValue = "20") size: Int,
+        model: Model
+    ): String {
         model.addAttribute("pageTitle", "Payments")
+        val safePage = page.coerceAtLeast(0)
+        val safeSize = size.coerceIn(1, 200)
         var loadError = false
-        val paymentResponses = try {
-            pgMainApiClient.listPayments(0, 20)?.content.orEmpty()
+        val paymentPage = try {
+            pgMainApiClient.listPayments(safePage, safeSize)
         } catch (ex: RestClientException) {
             loadError = true
-            emptyList()
+            null
         }
+
+        val paymentResponses = paymentPage?.content.orEmpty()
+        val totalElements = paymentPage?.totalElements ?: 0
+        val currentPage = paymentPage?.number ?: safePage
+        val pageSize = paymentPage?.size?.takeIf { it > 0 } ?: safeSize
+        val totalPages = if (totalElements == 0L) {
+            0
+        } else {
+            ((totalElements + pageSize - 1) / pageSize).toInt()
+        }
+
+        model.addAttribute("pageNumber", currentPage)
+        model.addAttribute("pageSize", pageSize)
+        model.addAttribute("totalElements", totalElements)
+        model.addAttribute("totalPages", totalPages)
+        model.addAttribute("hasPrev", currentPage > 0)
+        model.addAttribute("hasNext", totalPages > 0 && (currentPage + 1) < totalPages)
+        model.addAttribute("prevPage", (currentPage - 1).coerceAtLeast(0))
+        model.addAttribute("nextPage", currentPage + 1)
 
         val merchantsById = try {
             pgMainApiClient.listMerchants(0, 200)?.content.orEmpty().associateBy { it.id }
@@ -131,8 +157,8 @@ class PaymentViewController(
             return emptyList()
         }
 
-        val zone = ZoneId.systemDefault()
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm").withZone(zone)
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
+            .withZone(ZoneOffset.UTC)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
         val events = mutableListOf<Pair<Instant, Map<String, String>>>()
@@ -177,7 +203,8 @@ class PaymentViewController(
         if (instant == null) {
             return "-"
         }
-        val formatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
+            .withZone(ZoneOffset.UTC)
         return formatter.format(instant)
     }
 

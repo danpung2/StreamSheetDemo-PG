@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Error</title>
+</head>
+
+<body>
+    <h1>Something went wrong</h1>
+    <p th:text="${status}"></p>
+    <p th:text="${error}"></p>
+    <p th:text="${message}"></p>
+    <!-- Stack trace might not be available in production settings -->
+    <div th:if="${trace}">
+        <pre th:text="${trace}"></pre>
+    </div>
+</body>
+
+</html>

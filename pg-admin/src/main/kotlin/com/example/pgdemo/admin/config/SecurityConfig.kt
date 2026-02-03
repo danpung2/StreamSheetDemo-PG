@@ -3,6 +3,7 @@ package com.example.pgdemo.admin.config
 import com.example.pgdemo.admin.security.JwtAuthenticationFilter
 import com.example.pgdemo.admin.security.JwtProperties
 import com.example.pgdemo.admin.tenant.TenantAuthorizationFilter
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
@@ -36,8 +37,28 @@ class SecurityConfig(
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .exceptionHandling {
+                it.authenticationEntryPoint { request, response, authException ->
+                    if (request.requestURI.startsWith("/api")) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.message)
+                    } else {
+                        response.sendRedirect("/login")
+                    }
+                }
+            }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/login", "/api/auth/refresh", "/actuator/health").permitAll()
+                it.requestMatchers(
+                    "/api/auth/login", 
+                    "/api/auth/refresh", 
+                    "/actuator/health",
+                    "/login",
+                    "/",
+                    "/css/**", 
+                    "/js/**", 
+                    "/images/**",
+                    "/favicon.ico",
+                    "/error"
+                ).permitAll()
                     .anyRequest().authenticated()
             }
             // JWT 인증 필터 적용

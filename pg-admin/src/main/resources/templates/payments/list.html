@@ -1,47 +1,62 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Payments'">
-  <section class="page">
-    <div th:replace="fragments/header :: header('Payments')"></div>
-    <div class="shell">
-      <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
-      <main class="main">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Payments list</h2>
-            <div class="filters">
-              <span class="chip">Last 24 hours</span>
-              <span class="chip muted">Status: Captured</span>
-            </div>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
+  th:with="pageTitle='Payments'">
+<section class="page">
+  <div th:replace="fragments/header :: header('Payments')"></div>
+  <div class="shell">
+    <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Payments list</h2>
+          <div class="filters">
+            <span class="chip">Last 24 hours</span>
+            <span class="chip muted">Status: Captured</span>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Payment ID</th>
-                  <th>Merchant</th>
-                  <th>Amount</th>
-                  <th>Method</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="payment : ${payments}">
-                  <td><a th:href="@{/admin/payments/{paymentId}(paymentId=${payment.id})}" th:text="${payment.id}">-</a></td>
-                  <td th:text="${payment.merchant}">-</td>
-                  <td th:text="${payment.amount}">-</td>
-                  <td th:text="${payment.method}">-</td>
-                  <td><span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">-</span></td>
-                  <td th:text="${payment.createdAt}">-</td>
-                </tr>
-                <tr th:if="${payments == null or #lists.isEmpty(payments)}">
-                  <td colspan="6" class="empty">No payments available.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-    </div>
-  </section>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Payment ID</th>
+                <th>Merchant</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="payment : ${payments}">
+                <td><a th:href="@{/admin/payments/{paymentId}(paymentId=${payment.id})}" th:text="${payment.id}">-</a>
+                </td>
+                <td th:text="${payment.merchant}">-</td>
+                <td th:text="${payment.amount}">-</td>
+                <td th:text="${payment.method}">-</td>
+                <td><span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">-</span>
+                </td>
+                <td th:text="${payment.createdAt}">-</td>
+              </tr>
+              <tr th:if="${payments == null or #lists.isEmpty(payments)}">
+                <td colspan="6" class="empty">No payments available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="filters" th:if="${totalPages != null and totalPages > 0}">
+          <span class="chip muted" th:text="|Total: ${#numbers.formatInteger(totalElements, 3, 'COMMA')}|">Total:
+            0</span>
+          <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
+            1 / 1</span>
+          <a class="button ghost" th:if="${hasPrev}"
+            th:href="@{/admin/payments(page=${prevPage},size=${pageSize})}">Prev</a>
+          <a class="button ghost" th:if="${hasNext}"
+            th:href="@{/admin/payments(page=${nextPage},size=${pageSize})}">Next</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</section>
+
 </html>

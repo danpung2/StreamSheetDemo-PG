@@ -23,11 +23,20 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain
     ) {
         if (SecurityContextHolder.getContext().authentication == null) {
+            var token: String? = null
             val header = request.getHeader("Authorization")
+            
             if (header != null && header.startsWith("Bearer ")) {
-                val token = header.removePrefix("Bearer ")
-                if (jwtTokenProvider.validateAccessToken(token)) {
-                    val userId = jwtTokenProvider.getUserId(token)
+                token = header.removePrefix("Bearer ")
+            } else {
+                request.cookies?.find { it.name == "accessToken" }?.let {
+                    token = it.value
+                }
+            }
+
+            if (token != null) {
+                if (jwtTokenProvider.validateAccessToken(token!!)) {
+                    val userId = jwtTokenProvider.getUserId(token!!)
                     val adminUser = adminUserRepository.findById(userId).orElse(null)
                     if (adminUser != null) {
                         val authority = SimpleGrantedAuthority("ROLE_${adminUser.role.name}")
