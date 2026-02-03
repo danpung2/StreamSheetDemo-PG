@@ -402,19 +402,30 @@ class DataSeeder(
         val batch = mutableListOf<AdminUser>()
         val roles = UserRole.entries.toTypedArray()
         val encodedPassword = passwordEncoder.encode("password123!")
+
+        // 이미 존재하는 이메일은 다시 생성하지 않습니다.
+        // Skip creating accounts that already exist (by email).
+        val existingEmails = adminUserRepository.findAll().asSequence().map { it.email }.toHashSet()
+        var skippedCount = 0
         
         // Create operator admins (platform-wide)
         // 운영자 관리자 생성 (플랫폼 전체)
         val operatorCount = minOf(50, ADMIN_USER_COUNT / 10)
         repeat(operatorCount) { index ->
+            val email = "operator${index + 1}@pgdemo.com"
+            if (existingEmails.contains(email)) {
+                skippedCount += 1
+                return@repeat
+            }
             batch.add(createAdminUser(
                 index = index,
-                email = "operator${index + 1}@pgdemo.com",
+                email = email,
                 role = if (index < 5) UserRole.ADMIN else roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.OPERATOR,
                 tenantId = null,
                 encodedPassword = encodedPassword
             ))
+            existingEmails.add(email)
         }
         
         // Create headquarters admins
@@ -422,14 +433,23 @@ class DataSeeder(
         val hqAdminCount = minOf(200, (ADMIN_USER_COUNT - operatorCount) / 2)
         repeat(hqAdminCount) { index ->
             val hq = headquarters[index % headquarters.size]
+            val email =
+                "hq${(index / (hqAdminCount / headquarters.size + 1)) + 1}_admin${(index % 10) + 1}@pgdemo.com"
+
+            if (existingEmails.contains(email)) {
+                skippedCount += 1
+                return@repeat
+            }
+
             batch.add(createAdminUser(
                 index = operatorCount + index,
-                email = "hq${(index / (hqAdminCount / headquarters.size + 1)) + 1}_admin${(index % 10) + 1}@pgdemo.com",
+                email = email,
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.HEADQUARTERS,
                 tenantId = hq.id,
                 encodedPassword = encodedPassword
             ))
+            existingEmails.add(email)
             
             if (batch.size >= ADMIN_BATCH_SIZE) {
                 adminUserRepository.saveAll(batch)
@@ -444,14 +464,22 @@ class DataSeeder(
         val merchantAdminCount = ADMIN_USER_COUNT - operatorCount - hqAdminCount
         repeat(merchantAdminCount) { index ->
             val merchant = merchants[index % merchants.size]
+            val email = "merchant${(index / 10) + 1}_admin${(index % 10) + 1}@pgdemo.com"
+
+            if (existingEmails.contains(email)) {
+                skippedCount += 1
+                return@repeat
+            }
+
             batch.add(createAdminUser(
                 index = operatorCount + hqAdminCount + index,
-                email = "merchant${(index / 10) + 1}_admin${(index % 10) + 1}@pgdemo.com",
+                email = email,
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.MERCHANT,
                 tenantId = merchant.id,
                 encodedPassword = encodedPassword
             ))
+            existingEmails.add(email)
             
             if (batch.size >= ADMIN_BATCH_SIZE) {
                 adminUserRepository.saveAll(batch)
@@ -467,8 +495,10 @@ class DataSeeder(
             adminUserRepository.saveAll(batch)
             adminCounter.addAndGet(batch.size)
         }
-        
-        logger.info("Admin users seeding complete: $ADMIN_USER_COUNT / 관리자 시딩 완료: ${ADMIN_USER_COUNT}개")
+
+        logger.info(
+            "Admin users seeding complete: saved=${adminCounter.get()}, skipped=$skippedCount / 관리자 시딩 완료: 저장=${adminCounter.get()}개, 스킵=$skippedCount"
+        )
     }
     
     // ======== Helper Methods / 헬퍼 메서드 ========
