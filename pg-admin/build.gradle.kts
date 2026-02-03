@@ -26,6 +26,11 @@ dependencies {
     // Spring AOP
     // 테넌트 권한 검증 Aspect용 / For tenant access authorization aspect
     implementation("org.springframework.boot:spring-boot-starter-aop")
+
+    // StreamSheet
+    // Excel export with StreamSheet
+    implementation("io.github.danpung2:streamsheet-spring-boot-starter:0.0.1-SNAPSHOT")
+    implementation("io.github.danpung2:streamsheet-mongodb:0.0.1-SNAPSHOT")
     
     // JWT (JJWT)
     // JWT 토큰 처리 / JWT token handling
