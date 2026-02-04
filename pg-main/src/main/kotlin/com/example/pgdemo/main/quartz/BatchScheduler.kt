@@ -31,7 +31,7 @@ class BatchScheduler {
             .withIdentity("paymentViewSyncTrigger")
             .withSchedule(
                 SimpleScheduleBuilder.simpleSchedule()
-                    .withIntervalInMinutes(30)
+                    .withIntervalInMinutes(5)
                     .repeatForever()
             )
             .startNow()
