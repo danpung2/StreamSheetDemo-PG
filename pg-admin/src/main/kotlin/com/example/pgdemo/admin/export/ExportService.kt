@@ -7,6 +7,7 @@ import com.example.pgdemo.common.domain.document.PaymentExportView
 import com.example.pgdemo.common.domain.enum.PaymentStatus
 import com.example.pgdemo.common.domain.enum.RefundStatus
 import com.example.pgdemo.common.domain.`enum`.TenantType
+import com.streamsheet.core.datasource.StreamingDataSource
 import com.streamsheet.core.exporter.ExcelExporter
 import com.streamsheet.mongodb.MongoStreamingDataSource
 import com.streamsheet.core.schema.AnnotationExcelSchema
@@ -17,6 +18,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.sequences.sequence
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -128,61 +130,154 @@ class ExportService(
         applyTenantFilters(refundCriteria)
         refundStatusFilter?.let { refundCriteria.and("refundStatus").`is`(it.name) }
 
-        val criteria = when {
-            exportPayments && exportRefunds -> Criteria().orOperator(paymentCriteria, refundCriteria)
-            exportPayments -> paymentCriteria
-            else -> refundCriteria
+        data class DatedDto(
+            val at: Instant,
+            val typePriority: Int,
+            val tieId: String,
+            val dto: TransactionExportDto
+        )
+
+        fun paymentDatedDto(view: PaymentExportView): DatedDto {
+            val status = view.paymentStatus
+            val dto = TransactionExportDto(
+                transactionId = view.transactionId.toString(),
+                transactionType = "Payment",
+                headquartersCode = view.headquartersCode,
+                headquartersName = view.headquartersName,
+                merchantCode = view.merchantCode,
+                merchantName = view.merchantName,
+                orderId = view.orderId,
+                amount = view.amount,
+                method = view.paymentMethod,
+                status = status,
+                transactionDate = displayFormatter.format(view.paymentDate),
+                paymentId = null
+            )
+            return DatedDto(at = view.paymentDate, typePriority = 1, tieId = view.transactionId.toString(), dto = dto)
         }
 
-        val query = Query.query(criteria)
-        val baseSource = MongoStreamingDataSource.create(mongoTemplate, PaymentExportView::class.java, query)
+        fun refundDatedDto(view: PaymentExportView): DatedDto {
+            val refundId = view.refundId ?: throw IllegalStateException("refundId is missing")
+            val refundDate = view.refundDate ?: throw IllegalStateException("refundDate is missing")
+            val dto = TransactionExportDto(
+                transactionId = refundId.toString(),
+                transactionType = "Refund",
+                headquartersCode = view.headquartersCode,
+                headquartersName = view.headquartersName,
+                merchantCode = view.merchantCode,
+                merchantName = view.merchantName,
+                orderId = view.orderId,
+                amount = view.refundAmount ?: 0L,
+                method = view.paymentMethod,
+                status = view.refundStatus ?: "-",
+                transactionDate = displayFormatter.format(refundDate),
+                paymentId = view.transactionId.toString()
+            )
+            return DatedDto(at = refundDate, typePriority = 0, tieId = refundId.toString(), dto = dto)
+        }
+
+        fun mergeDated(a: Sequence<DatedDto>, b: Sequence<DatedDto>): Sequence<TransactionExportDto> {
+            val ia = a.iterator()
+            val ib = b.iterator()
+
+            fun nextOrNull(it: Iterator<DatedDto>): DatedDto? = if (it.hasNext()) it.next() else null
+
+            return sequence {
+                var ca: DatedDto? = nextOrNull(ia)
+                var cb: DatedDto? = nextOrNull(ib)
+
+                while (ca != null || cb != null) {
+                    val pickA = when {
+                        cb == null -> true
+                        ca == null -> false
+                        ca.at.isAfter(cb.at) -> true
+                        cb.at.isAfter(ca.at) -> false
+                        ca.typePriority < cb.typePriority -> true
+                        cb.typePriority < ca.typePriority -> false
+                        else -> ca.tieId > cb.tieId
+                    }
+
+                    if (pickA) {
+                        yield(ca!!.dto)
+                        ca = nextOrNull(ia)
+                    } else {
+                        yield(cb!!.dto)
+                        cb = nextOrNull(ib)
+                    }
+                }
+            }
+        }
 
         val schema = AnnotationExcelSchema.create<TransactionExportDto>()
-        val dataSource = MappedStreamingDataSource(baseSource) { view: PaymentExportView ->
-            sequence {
-                if (exportPayments && view.paymentDate >= fromUtc && view.paymentDate < toUtcExclusive) {
-                    val status = view.paymentStatus
-                    if (paymentStatusFilter == null || status == paymentStatusFilter.name) {
-                        yield(
-                            TransactionExportDto(
-                                transactionId = view.transactionId.toString(),
-                                transactionType = "Payment",
-                                headquartersCode = view.headquartersCode,
-                                headquartersName = view.headquartersName,
-                                merchantCode = view.merchantCode,
-                                merchantName = view.merchantName,
-                                orderId = view.orderId,
-                                amount = view.amount,
-                                method = view.paymentMethod,
-                                status = status,
-                                transactionDate = displayFormatter.format(view.paymentDate),
-                                paymentId = null
-                            )
-                        )
+
+        val paymentsSort = Sort.by(Sort.Direction.DESC, "paymentDate")
+            .and(Sort.by(Sort.Direction.DESC, "transactionId"))
+        val refundsSort = Sort.by(Sort.Direction.DESC, "refundDate")
+            .and(Sort.by(Sort.Direction.DESC, "refundId"))
+
+        val dataSource: StreamingDataSource<TransactionExportDto> = when {
+            exportPayments && exportRefunds -> {
+                val paymentQuery = Query.query(paymentCriteria).with(paymentsSort)
+                val refundQuery = Query.query(refundCriteria).with(refundsSort)
+
+                val paymentSource = MongoStreamingDataSource.create(mongoTemplate, PaymentExportView::class.java, paymentQuery)
+                val refundSource = MongoStreamingDataSource.create(mongoTemplate, PaymentExportView::class.java, refundQuery)
+
+                val paymentDatedSource = MappedStreamingDataSource(paymentSource, name = "payment_export_view") { view: PaymentExportView ->
+                    sequence {
+                        // paymentQuery already ranges by paymentDate; filter here is defensive.
+                        if (view.paymentDate >= fromUtc && view.paymentDate < toUtcExclusive) {
+                            val status = view.paymentStatus
+                            if (paymentStatusFilter == null || status == paymentStatusFilter.name) {
+                                yield(paymentDatedDto(view))
+                            }
+                        }
                     }
                 }
 
-                val refundId = view.refundId
-                val refundDate = view.refundDate
-                val refundStatus = view.refundStatus
-                if (exportRefunds && refundId != null && refundDate != null && refundDate >= fromUtc && refundDate < toUtcExclusive) {
-                    if (refundStatusFilter == null || refundStatus == refundStatusFilter.name) {
-                        yield(
-                            TransactionExportDto(
-                                transactionId = refundId.toString(),
-                                transactionType = "Refund",
-                                headquartersCode = view.headquartersCode,
-                                headquartersName = view.headquartersName,
-                                merchantCode = view.merchantCode,
-                                merchantName = view.merchantName,
-                                orderId = view.orderId,
-                                amount = view.refundAmount ?: 0L,
-                                method = view.paymentMethod,
-                                status = refundStatus ?: "-",
-                                transactionDate = displayFormatter.format(refundDate),
-                                paymentId = view.transactionId.toString()
-                            )
-                        )
+                val refundDatedSource = MappedStreamingDataSource(refundSource, name = "payment_export_view") { view: PaymentExportView ->
+                    sequence {
+                        // refundQuery ensures refundId/refundDate are present and within range.
+                        val refundStatus = view.refundStatus
+                        if (refundStatusFilter == null || refundStatus == refundStatusFilter.name) {
+                            yield(refundDatedDto(view))
+                        }
+                    }
+                }
+
+                object : StreamingDataSource<TransactionExportDto> {
+                    override val sourceName: String
+                        get() = "transactions"
+
+                    override fun stream(): Sequence<TransactionExportDto> {
+                        return mergeDated(paymentDatedSource.stream(), refundDatedSource.stream())
+                    }
+
+                    override fun stream(filter: Map<String, Any>): Sequence<TransactionExportDto> {
+                        return mergeDated(paymentDatedSource.stream(filter), refundDatedSource.stream(filter))
+                    }
+
+                    override fun close() {
+                        paymentDatedSource.close()
+                        refundDatedSource.close()
+                    }
+                }
+            }
+            exportPayments -> {
+                val paymentQuery = Query.query(paymentCriteria).with(paymentsSort)
+                val paymentSource = MongoStreamingDataSource.create(mongoTemplate, PaymentExportView::class.java, paymentQuery)
+                MappedStreamingDataSource(paymentSource, name = "transactions") { view: PaymentExportView ->
+                    sequence {
+                        yield(paymentDatedDto(view).dto)
+                    }
+                }
+            }
+            else -> {
+                val refundQuery = Query.query(refundCriteria).with(refundsSort)
+                val refundSource = MongoStreamingDataSource.create(mongoTemplate, PaymentExportView::class.java, refundQuery)
+                MappedStreamingDataSource(refundSource, name = "transactions") { view: PaymentExportView ->
+                    sequence {
+                        yield(refundDatedDto(view).dto)
                     }
                 }
             }
