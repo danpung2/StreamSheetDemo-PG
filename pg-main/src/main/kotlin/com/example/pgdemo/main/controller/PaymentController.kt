@@ -1,5 +1,6 @@
 package com.example.pgdemo.main.controller
 
+import com.example.pgdemo.common.domain.enum.PaymentStatus
 import com.example.pgdemo.main.dto.PaymentRequest
 import com.example.pgdemo.main.dto.PaymentResponse
 import com.example.pgdemo.main.service.PaymentService
@@ -35,7 +36,7 @@ class PaymentController(
         @RequestParam(name = "to", required = false) toUtc: Instant?,
         @RequestParam(name = "headquartersId", required = false) headquartersId: UUID?,
         @RequestParam(name = "merchantId", required = false) merchantId: UUID?,
-        @RequestParam(name = "status", required = false) status: com.example.pgdemo.common.domain.enum.PaymentStatus?,
+        @RequestParam(name = "status", required = false) status: PaymentStatus?,
         pageable: Pageable
     ): Page<PaymentResponse> {
         return paymentService.listPayments(
