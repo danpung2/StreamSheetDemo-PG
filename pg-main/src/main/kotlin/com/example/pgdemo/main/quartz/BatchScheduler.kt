@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import com.example.pgdemo.main.batch.PaymentExportViewSyncStateStore
 
 @Configuration
 class BatchScheduler {
@@ -47,9 +48,21 @@ class PaymentViewSyncQuartzJob : Job {
     @Qualifier("paymentViewSyncJob")
     private lateinit var paymentViewSyncJob: org.springframework.batch.core.Job
 
+    @Autowired
+    private lateinit var syncStateStore: PaymentExportViewSyncStateStore
+
     override fun execute(context: JobExecutionContext) {
+        syncStateStore.migrateIfNeeded()
+
+        val (paymentFrom, paymentFromId) = syncStateStore.getPaymentLastSyncCursor()
+        val (refundFrom, refundFromId) = syncStateStore.getRefundLastSyncCursor()
+
         val params = JobParametersBuilder()
             .addLong("run.id", System.currentTimeMillis())
+            .addLong("paymentSyncFrom", paymentFrom.toEpochMilli())
+            .addString("paymentSyncFromId", paymentFromId?.toString() ?: "")
+            .addLong("refundSyncFrom", refundFrom.toEpochMilli())
+            .addString("refundSyncFromId", refundFromId?.toString() ?: "")
             .toJobParameters()
         jobLauncher.run(paymentViewSyncJob, params)
     }

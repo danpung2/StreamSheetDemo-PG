@@ -3,7 +3,6 @@ package com.example.pgdemo.common.domain.repository
 import com.example.pgdemo.common.domain.document.PaymentExportView
 import java.time.Instant
 import java.util.UUID
-import org.bson.types.ObjectId
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.repository.MongoRepository
@@ -18,7 +17,7 @@ import org.springframework.stereotype.Repository
  * StreamSheet 엑셀 내보내기 작업에 사용됩니다.
  */
 @Repository
-interface PaymentExportViewRepository : MongoRepository<PaymentExportView, ObjectId> {
+interface PaymentExportViewRepository : MongoRepository<PaymentExportView, UUID> {
     
     // 트랜잭션 ID로 조회 / Find by transaction ID
     fun findByTransactionId(transactionId: UUID): PaymentExportView?

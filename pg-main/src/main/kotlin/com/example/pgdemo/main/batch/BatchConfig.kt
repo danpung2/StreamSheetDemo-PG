@@ -2,6 +2,7 @@ package com.example.pgdemo.main.batch
 
 import com.example.pgdemo.common.domain.document.PaymentExportView
 import com.example.pgdemo.common.domain.entity.PaymentTransaction
+import com.example.pgdemo.common.domain.entity.RefundTransaction
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.Step
 import org.springframework.batch.core.job.builder.JobBuilder
@@ -10,6 +11,7 @@ import org.springframework.batch.core.step.builder.StepBuilder
 import org.springframework.batch.item.ItemProcessor
 import org.springframework.batch.item.ItemReader
 import org.springframework.batch.item.ItemWriter
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.transaction.PlatformTransactionManager
@@ -20,13 +22,27 @@ class BatchConfig(
     private val transactionManager: PlatformTransactionManager
 ) {
     @Bean
-    fun paymentViewSyncStep(
-        reader: ItemReader<PaymentTransaction>,
-        processor: ItemProcessor<PaymentTransaction, PaymentExportView>,
-        writer: ItemWriter<PaymentExportView>
+    fun paymentViewSyncPaymentsStep(
+        @Qualifier("paymentTransactionReader") reader: ItemReader<PaymentTransaction>,
+        @Qualifier("paymentExportViewProcessor") processor: ItemProcessor<PaymentTransaction, PaymentExportViewUpsertItem>,
+        @Qualifier("paymentExportViewUpsertPaymentWriter") writer: ItemWriter<PaymentExportViewUpsertItem>
     ): Step {
-        return StepBuilder("paymentViewSyncStep", jobRepository)
-            .chunk<PaymentTransaction, PaymentExportView>(100, transactionManager)
+        return StepBuilder("paymentViewSyncPaymentsStep", jobRepository)
+            .chunk<PaymentTransaction, PaymentExportViewUpsertItem>(100, transactionManager)
+            .reader(reader)
+            .processor(processor)
+            .writer(writer)
+            .build()
+    }
+
+    @Bean
+    fun paymentViewSyncRefundsStep(
+        @Qualifier("refundTransactionReader") reader: ItemReader<RefundTransaction>,
+        @Qualifier("refundExportViewProcessor") processor: ItemProcessor<RefundTransaction, PaymentExportViewUpsertItem>,
+        @Qualifier("paymentExportViewUpsertRefundWriter") writer: ItemWriter<PaymentExportViewUpsertItem>
+    ): Step {
+        return StepBuilder("paymentViewSyncRefundsStep", jobRepository)
+            .chunk<RefundTransaction, PaymentExportViewUpsertItem>(100, transactionManager)
             .reader(reader)
             .processor(processor)
             .writer(writer)
@@ -34,9 +50,10 @@ class BatchConfig(
     }
 
     @Bean(name = ["paymentViewSyncJob"])
-    fun paymentViewSyncJob(paymentViewSyncStep: Step): Job {
+    fun paymentViewSyncJob(paymentViewSyncPaymentsStep: Step, paymentViewSyncRefundsStep: Step): Job {
         return JobBuilder("paymentViewSyncJob", jobRepository)
-            .start(paymentViewSyncStep)
+            .start(paymentViewSyncPaymentsStep)
+            .next(paymentViewSyncRefundsStep)
             .build()
     }
 }

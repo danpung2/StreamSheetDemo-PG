@@ -471,6 +471,33 @@ interface PaymentTransactionRepository :
             pageable: Pageable
     ): Page<PaymentTransaction>
 
+    @Query(
+            """
+        SELECT p FROM PaymentTransaction p
+        WHERE p.updatedAt > :lastSyncTime
+           OR p.updatedAt = :lastSyncTime
+        ORDER BY p.updatedAt ASC, p.id ASC
+    """
+    )
+    fun findPaymentsForSyncFromTimeInclusive(
+            @Param("lastSyncTime") lastSyncTime: Instant,
+            pageable: Pageable
+    ): Page<PaymentTransaction>
+
+    @Query(
+            """
+        SELECT p FROM PaymentTransaction p
+        WHERE p.updatedAt > :lastSyncTime
+           OR (p.updatedAt = :lastSyncTime AND p.id > :lastSyncId)
+        ORDER BY p.updatedAt ASC, p.id ASC
+    """
+    )
+    fun findPaymentsForSyncCursor(
+            @Param("lastSyncTime") lastSyncTime: Instant,
+            @Param("lastSyncId") lastSyncId: UUID,
+            pageable: Pageable
+    ): Page<PaymentTransaction>
+
     /**
      * Find all IDs pending synchronization (for batch job). 동기화 대기 중인 모든 ID를 조회합니다 (배치 작업용).
      *

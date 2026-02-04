@@ -39,6 +39,8 @@ interface RefundTransactionRepository : JpaRepository<RefundTransaction, UUID> {
      * @return the refund transaction if found, null otherwise / 환불 트랜잭션이 존재하면 반환
      */
     fun findFirstByPaymentId(paymentId: UUID): RefundTransaction?
+
+    fun findTopByPaymentIdOrderByUpdatedAtDesc(paymentId: UUID): RefundTransaction?
     
     /**
      * Check if refund exists for payment.
@@ -315,6 +317,33 @@ interface RefundTransactionRepository : JpaRepository<RefundTransaction, UUID> {
     """)
     fun findRefundsForSync(
         @Param("lastSyncTime") lastSyncTime: Instant, 
+        pageable: Pageable
+    ): Page<RefundTransaction>
+
+    @Query(
+        """
+        SELECT r FROM RefundTransaction r
+        WHERE r.updatedAt > :lastSyncTime
+           OR r.updatedAt = :lastSyncTime
+        ORDER BY r.updatedAt ASC, r.id ASC
+        """
+    )
+    fun findRefundsForSyncFromTimeInclusive(
+        @Param("lastSyncTime") lastSyncTime: Instant,
+        pageable: Pageable
+    ): Page<RefundTransaction>
+
+    @Query(
+        """
+        SELECT r FROM RefundTransaction r
+        WHERE r.updatedAt > :lastSyncTime
+           OR (r.updatedAt = :lastSyncTime AND r.id > :lastSyncId)
+        ORDER BY r.updatedAt ASC, r.id ASC
+        """
+    )
+    fun findRefundsForSyncCursor(
+        @Param("lastSyncTime") lastSyncTime: Instant,
+        @Param("lastSyncId") lastSyncId: UUID,
         pageable: Pageable
     ): Page<RefundTransaction>
 }
