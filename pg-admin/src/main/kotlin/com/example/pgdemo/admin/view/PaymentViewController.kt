@@ -48,6 +48,7 @@ class PaymentViewController(
         @RequestParam(name = "to", required = false) toUtc: String?,
         @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
         @RequestParam(name = "merchantId", required = false) merchantId: String?,
+        @RequestParam(name = "type", required = false) type: String?,
         @RequestParam(name = "status", required = false) status: String?,
         model: Model
     ): String {
@@ -151,23 +152,47 @@ class PaymentViewController(
         model.addAttribute("headquartersId", resolvedHeadquartersId?.toString() ?: "")
         model.addAttribute("merchantId", resolvedMerchantId?.toString() ?: "")
 
-        val trimmedStatus = status?.trim()?.takeIf { it.isNotBlank() }
-        val paymentStatusFilter = trimmedStatus?.let { runCatching { PaymentStatus.valueOf(it) }.getOrNull() }
-        val refundStatusFilter = trimmedStatus?.let { runCatching { RefundStatus.valueOf(it) }.getOrNull() }
-        if (trimmedStatus != null && paymentStatusFilter == null && refundStatusFilter == null) {
-            filterError = "Invalid status"
+        val normalizedType = type
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                when (it) {
+                    "payment" -> "Payment"
+                    "refund" -> "Refund"
+                    else -> null
+                }
+            }
+
+        val rawStatus = status?.trim()?.takeIf { it.isNotBlank() }
+
+        var resolvedStatus: String? = null
+        var paymentStatusFilter: PaymentStatus? = null
+        var refundStatusFilter: RefundStatus? = null
+
+        if (normalizedType == null) {
+            resolvedStatus = rawStatus
+            paymentStatusFilter = rawStatus?.let { runCatching { PaymentStatus.valueOf(it) }.getOrNull() }
+            refundStatusFilter = rawStatus?.let { runCatching { RefundStatus.valueOf(it) }.getOrNull() }
+            if (rawStatus != null && paymentStatusFilter == null && refundStatusFilter == null) {
+                filterError = "Invalid status"
+            }
         }
 
         if (filterError != null) {
             model.addAttribute("filterError", filterError)
         }
 
-        model.addAttribute("status", trimmedStatus ?: "")
-        model.addAttribute(
-            "statusOptions",
-            PaymentStatus.values().map { s -> mapOf("value" to s.name, "label" to formatPaymentStatus(s)) } +
+        model.addAttribute("type", normalizedType ?: "")
+        model.addAttribute("status", resolvedStatus ?: "")
+
+        val statusOptions = when (normalizedType) {
+            "Payment" -> PaymentStatus.values().map { s -> mapOf("value" to s.name, "label" to formatPaymentStatus(s)) }
+            "Refund" -> RefundStatus.values().map { s -> mapOf("value" to s.name, "label" to formatRefundStatus(s)) }
+            else -> PaymentStatus.values().map { s -> mapOf("value" to s.name, "label" to formatPaymentStatus(s)) } +
                 RefundStatus.values().map { s -> mapOf("value" to s.name, "label" to formatRefundStatus(s)) }
-        )
+        }
+        model.addAttribute("statusOptions", statusOptions)
 
         val headquartersOptions = when (tenantInfo.tenantType) {
             TenantType.OPERATOR -> {
@@ -209,8 +234,8 @@ class PaymentViewController(
         }
         model.addAttribute("merchantOptions", merchantOptions)
 
-        val showPayments = trimmedStatus == null || paymentStatusFilter != null
-        val showRefunds = trimmedStatus == null || refundStatusFilter != null
+        val showPayments = normalizedType != "Refund" && (resolvedStatus == null || paymentStatusFilter != null)
+        val showRefunds = normalizedType != "Payment" && (resolvedStatus == null || refundStatusFilter != null)
 
         // Export supports both payments and refunds.
         model.addAttribute("exportEnabled", true)

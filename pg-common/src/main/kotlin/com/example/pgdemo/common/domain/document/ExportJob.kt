@@ -22,6 +22,7 @@ data class ExportJob(
     val merchantId: UUID?,
     val fromUtc: Instant,
     val toUtc: Instant,
+    val transactionType: String? = null,
     val transactionStatus: String? = null,
     val status: ExportJobStatus,
     val progressLabel: String?,

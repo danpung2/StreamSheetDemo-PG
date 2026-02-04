@@ -35,6 +35,7 @@ class PaymentExportJobService(
         val toUtc: Instant,
         val headquartersId: UUID?,
         val merchantId: UUID?,
+        val transactionType: String?,
         val transactionStatus: String?
     )
 
@@ -63,6 +64,7 @@ class PaymentExportJobService(
             merchantId = resolvedMerchantId,
             fromUtc = request.fromUtc,
             toUtc = request.toUtc,
+            transactionType = request.transactionType,
             transactionStatus = request.transactionStatus,
             status = ExportJobStatus.QUEUED,
             progressLabel = "조회 준비",
@@ -192,6 +194,7 @@ class PaymentExportJobService(
                     outputStream = outputStream,
                     headquartersId = job.headquartersId,
                     merchantId = job.merchantId,
+                    transactionType = job.transactionType,
                     transactionStatus = job.transactionStatus
                 )
             }

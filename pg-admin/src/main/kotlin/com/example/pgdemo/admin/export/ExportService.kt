@@ -56,6 +56,7 @@ class ExportService(
         outputStream: OutputStream,
         headquartersId: UUID?,
         merchantId: UUID?,
+        transactionType: String?,
         transactionStatus: String?
     ) {
         val tenantInfo = TenantContext.require()
@@ -67,6 +68,21 @@ class ExportService(
             "toUtc must be after fromUtc"
         }
 
+        val normalizedType = transactionType
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                when (it) {
+                    "payment" -> "payment"
+                    "refund" -> "refund"
+                    else -> null
+                }
+            }
+        require(transactionType == null || transactionType.isBlank() || normalizedType != null) {
+            "Invalid transactionType"
+        }
+
         val trimmed = transactionStatus?.trim()?.takeIf { it.isNotBlank() }
         val paymentStatusFilter = trimmed?.let { runCatching { PaymentStatus.valueOf(it) }.getOrNull() }
         val refundStatusFilter = trimmed?.let { runCatching { RefundStatus.valueOf(it) }.getOrNull() }
@@ -74,8 +90,10 @@ class ExportService(
             "Invalid transactionStatus"
         }
 
-        val exportPayments = trimmed == null || paymentStatusFilter != null
-        val exportRefunds = trimmed == null || refundStatusFilter != null
+        val exportPaymentsByType = normalizedType == null || normalizedType == "payment"
+        val exportRefundsByType = normalizedType == null || normalizedType == "refund"
+        val exportPayments = exportPaymentsByType && (trimmed == null || paymentStatusFilter != null)
+        val exportRefunds = exportRefundsByType && (trimmed == null || refundStatusFilter != null)
 
         fun applyTenantFilters(criteria: Criteria) {
             when (tenantInfo.tenantType) {

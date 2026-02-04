@@ -34,6 +34,7 @@ class PaymentExportJobController(
         val toUtc: Instant,
         val headquartersId: UUID?,
         val merchantId: UUID?,
+        val transactionType: String?,
         val transactionStatus: String?
     )
 
@@ -47,6 +48,7 @@ class PaymentExportJobController(
         @RequestParam("toUtc") toUtc: String,
         @RequestParam("headquartersId", required = false) headquartersId: String?,
         @RequestParam("merchantId", required = false) merchantId: String?,
+        @RequestParam("transactionType", required = false) transactionType: String?,
         @RequestParam("transactionStatus", required = false) transactionStatus: String?
     ): String {
         val parsedFromUtc = LocalDateTime.parse(fromUtc).atZone(displayZone).toInstant()
@@ -60,6 +62,7 @@ class PaymentExportJobController(
                 toUtc = parsedToUtc,
                 headquartersId = parsedHeadquartersId,
                 merchantId = parsedMerchantId,
+                transactionType = transactionType?.trim()?.takeIf { it.isNotBlank() },
                 transactionStatus = transactionStatus?.trim()?.takeIf { it.isNotBlank() }
             ),
             requestedBy = requestedBy
@@ -77,6 +80,7 @@ class PaymentExportJobController(
                 toUtc = request.toUtc,
                 headquartersId = request.headquartersId,
                 merchantId = request.merchantId,
+                transactionType = request.transactionType?.trim()?.takeIf { it.isNotBlank() },
                 transactionStatus = request.transactionStatus?.trim()?.takeIf { it.isNotBlank() }
             ),
             requestedBy = requestedBy

@@ -23,7 +23,13 @@
                 <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
               </select>
 
-              <select name="status">
+              <select name="type">
+                <option value="" th:selected="${type == ''}">All Type</option>
+                <option value="Payment" th:selected="${type == 'Payment'}">Payment</option>
+                <option value="Refund" th:selected="${type == 'Refund'}">Refund</option>
+              </select>
+
+              <select name="status" th:if="${type == ''}">
                 <option value="" th:selected="${status == ''}">All Status</option>
                 <option th:each="s : ${statusOptions}" th:value="${s.value}" th:text="${s.label}" th:selected="${s.value == status}">-</option>
               </select>
@@ -42,7 +48,8 @@
               <input type="hidden" name="toUtc" th:value="${toUtcLocal}" />
               <input type="hidden" name="headquartersId" th:value="${headquartersId}" />
               <input type="hidden" name="merchantId" th:value="${merchantId}" />
-              <input type="hidden" name="transactionStatus" th:value="${status}" />
+              <input type="hidden" name="transactionType" th:value="${type}" />
+              <input type="hidden" name="transactionStatus" th:value="${type == '' ? status : ''}" />
               <button class="button primary" type="submit">Export</button>
             </form>
           </div>
@@ -94,10 +101,10 @@
             0</span>
           <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
             1 / 1</span>
-          <a class="button ghost" th:if="${hasPrev}"
-            th:href="@{/admin/payments(page=${prevPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Prev</a>
-          <a class="button ghost" th:if="${hasNext}"
-            th:href="@{/admin/payments(page=${nextPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Next</a>
+            <a class="button ghost" th:if="${hasPrev}"
+            th:href="@{/admin/payments(page=${prevPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},type=${type},status=${status})}">Prev</a>
+           <a class="button ghost" th:if="${hasNext}"
+            th:href="@{/admin/payments(page=${nextPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},type=${type},status=${status})}">Next</a>
         </div>
 
           <script>
@@ -137,6 +144,15 @@
                 hqSelect.addEventListener('change', function () {
                   var merchantSelect = filterForm.querySelector('select[name="merchantId"]');
                   if (merchantSelect) merchantSelect.value = '';
+                  filterForm.submit();
+                });
+              }
+
+              var typeSelect = filterForm.querySelector('select[name="type"]');
+              if (typeSelect) {
+                typeSelect.addEventListener('change', function () {
+                  var statusSelect = filterForm.querySelector('select[name="status"]');
+                  if (statusSelect) statusSelect.value = '';
                   filterForm.submit();
                 });
               }
