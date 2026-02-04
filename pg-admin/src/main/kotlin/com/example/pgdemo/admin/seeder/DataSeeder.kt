@@ -69,12 +69,21 @@ class DataSeeder(
         // 랜덤 선택을 위한 결제 수단
         private val PAYMENT_METHODS = listOf("CARD", "BANK_TRANSFER", "KAKAO_PAY", "NAVER_PAY", "TOSS")
         
-        // Refund reasons for random selection
-        // 랜덤 선택을 위한 환불 사유
-        private val REFUND_REASONS = listOf(
-            "고객 변심", "상품 불량", "배송 지연", "오배송", "주문 취소", 
-            "사이즈 교환", "품절", "가격 오류", "중복 결제", null
+        // Refund reasons categorised by domain
+        // 도메인별 환불 사유
+        private val COMMON_REFUND_REASONS = listOf(
+            "고객 변심", "주문 취소", "중복 결제", "기타 사유", null
         )
+
+        private val FNB_REFUND_REASONS = listOf(
+            "음식 상태 불량", "메뉴 오제조", "배달 지연", "이물질 혼입", 
+            "포장 불량", "맛 불만족"
+        ) + COMMON_REFUND_REASONS
+
+        private val RETAIL_REFUND_REASONS = listOf(
+            "상품 불량", "사이즈 교환", "색상 교환", "오배송", 
+            "마감 미흡", "유통기한 경과"
+        ) + COMMON_REFUND_REASONS
         
         // Sample company names
         // 샘플 회사명
@@ -376,7 +385,7 @@ class DataSeeder(
             val refund = RefundTransaction().apply {
                 this.payment = payment
                 this.refundAmount = maxOf(refundAmount, 100) // Minimum 100 won
-                refundReason = REFUND_REASONS[Random.nextInt(REFUND_REASONS.size)]
+                refundReason = getRefundReason(payment.merchant!!.businessType)
                 status = generateRefundStatus()
 
                 val base = (payment.completedAt ?: payment.processedAt ?: payment.requestedAt)
@@ -619,6 +628,21 @@ class DataSeeder(
             in 950..989 -> Random.nextLong(8_000, 20_000) // 4%
             else -> Random.nextLong(20_000, 60_000)      // 1%
         }
+    }
+
+    private fun getRefundReason(businessType: BusinessType?): String? {
+        val type = businessType ?: BusinessType.OTHER
+        val reasons = when (type) {
+            BusinessType.CAFE, 
+            BusinessType.RESTAURANT, 
+            BusinessType.FAST_FOOD -> FNB_REFUND_REASONS
+            
+            BusinessType.RETAIL, 
+            BusinessType.CONVENIENCE_STORE -> RETAIL_REFUND_REASONS
+            
+            BusinessType.OTHER -> FNB_REFUND_REASONS + RETAIL_REFUND_REASONS // Mix for others
+        }
+        return reasons[Random.nextInt(reasons.size)]
     }
 
     private fun sampleRefundSettlementDelayMs(): Long {
