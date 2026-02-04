@@ -103,8 +103,8 @@
           <script>
             (function () {
             function pad2(n) { return String(n).padStart(2, '0'); }
-            function formatUtcLocal(dt) {
-              return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate()) + 'T' + pad2(dt.getUTCHours()) + ':' + pad2(dt.getUTCMinutes());
+            function formatLocalDateTime(dt) {
+              return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()) + 'T' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes());
             }
             function applyPreset(preset) {
               var form = document.querySelector('form.filters[action="/admin/payments"]');
@@ -121,8 +121,8 @@
               if (preset === '7D') from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
               if (preset === '30D') from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-              fromInput.value = formatUtcLocal(from);
-              toInput.value = formatUtcLocal(now);
+              fromInput.value = formatLocalDateTime(from);
+              toInput.value = formatLocalDateTime(now);
               form.submit();
             }
 
