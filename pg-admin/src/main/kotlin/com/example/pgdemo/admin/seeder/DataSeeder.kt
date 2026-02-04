@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
@@ -240,8 +240,14 @@ class DataSeeder(
         
         val result = mutableListOf<PaymentTransaction>()
         val batch = mutableListOf<PaymentTransaction>()
-        val paymentStatuses = PaymentStatus.entries.toTypedArray()
         val now = Instant.now()
+
+        // Seed payments so that requestedAt falls within the last 24 hours.
+        // This makes the admin dashboard (24h KPIs) and /admin/payments default view non-empty right after seeding.
+        // NOTE: We intentionally keep a small buffer so processed/completed timestamps don't end up in the future.
+        val windowFrom = now.minus(Duration.ofHours(24))
+        val windowTo = now.minus(Duration.ofSeconds(10))
+        val windowMillis = Duration.between(windowFrom, windowTo).toMillis().coerceAtLeast(1)
         
         repeat(PAYMENT_COUNT) { index ->
             val merchant = merchants[Random.nextInt(merchants.size)]
@@ -250,36 +256,31 @@ class DataSeeder(
                 orderId = "ORD${System.nanoTime()}-${String.format("%09d", index + 1)}"
                 amount = (Random.nextLong(1000, 500000) / 100) * 100  // Round to 100
                 paymentMethod = PAYMENT_METHODS[Random.nextInt(PAYMENT_METHODS.size)]
-                status = generatePaymentStatus(paymentStatuses)
-                
-                // Set timestamps based on status
-                // 상태에 따른 타임스탬프 설정
-                val baseTime = now.minus(Random.nextLong(1, 365), ChronoUnit.DAYS)
-                    .minus(Random.nextLong(0, 24), ChronoUnit.HOURS)
-                    .minus(Random.nextLong(0, 60), ChronoUnit.MINUTES)
-                
-                // requestedAt is set by @CreationTimestamp, but we need to manually set for consistent data
-                // requestedAt는 @CreationTimestamp로 설정되지만, 일관된 데이터를 위해 수동 설정 필요
-                requestedAt = baseTime
-                
+                status = generatePaymentStatus()
+
+                requestedAt = windowFrom.plusMillis(Random.nextLong(windowMillis))
+
+                val processingDelayMs = samplePaymentProcessingDelayMs(status)
+                val processed = requestedAt.plusMillis(processingDelayMs)
+
                 when (status) {
                     PaymentStatus.PAYMENT_COMPLETED -> {
-                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
-                        completedAt = processedAt!!.plus(Random.nextLong(1, 25), ChronoUnit.SECONDS)
+                        processedAt = processed
+                        completedAt = processed.plusMillis(samplePaymentSettlementDelayMs())
                     }
                     PaymentStatus.PAYMENT_FAILED -> {
-                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
+                        processedAt = processed
                         failureReason = listOf(
                             "잔액 부족", "카드 한도 초과", "통신 오류", 
                             "결제 거절", "유효하지 않은 카드"
                         ).random()
                     }
                     PaymentStatus.PAYMENT_PROCESSING -> {
-                        processedAt = requestedAt.plus(Random.nextLong(1, 3), ChronoUnit.SECONDS)
+                        processedAt = processed
                     }
                     PaymentStatus.PAYMENT_CANCELLED -> {
-                        processedAt = requestedAt.plus(Random.nextLong(1, 5), ChronoUnit.SECONDS)
-                        completedAt = processedAt!!.plus(Random.nextLong(1, 55), ChronoUnit.SECONDS)
+                        processedAt = processed
+                        completedAt = processed.plusMillis(samplePaymentCancellationDelayMs())
                     }
                     else -> { /* PAYMENT_PENDING - no additional timestamps */ }
                 }
@@ -324,23 +325,26 @@ class DataSeeder(
         }
         
         val batch = mutableListOf<RefundTransaction>()
-        val refundStatuses = RefundStatus.entries.toTypedArray()
         val now = Instant.now()
+
+        val refundCandidates = completedPayments
+            .filter { it.completedAt != null && it.completedAt!!.isBefore(now.minus(Duration.ofMinutes(10))) }
+            .ifEmpty { completedPayments }
+
+        val latestRefundRequestedAt = now.minus(Duration.ofMinutes(4))
         val usedPaymentIndices = mutableSetOf<Int>()
         
-        repeat(REFUND_COUNT) { index ->
+        repeat(REFUND_COUNT) {
             // Select a random completed payment (may reuse for partial refunds)
             // 랜덤으로 완료된 결제 선택 (부분 환불을 위해 재사용 가능)
-            val paymentIndex = Random.nextInt(completedPayments.size)
-            val payment = completedPayments[paymentIndex]
-            
-            // Calculate refund amount (partial or full)
-            // 환불 금액 계산 (부분 또는 전체)
-            val isPartialRefund = Random.nextBoolean() || usedPaymentIndices.contains(paymentIndex)
-            val refundAmount = if (isPartialRefund) {
-                (payment.amount * Random.nextDouble(0.1, 0.8)).toLong() / 100 * 100
-            } else {
+            val paymentIndex = Random.nextInt(refundCandidates.size)
+            val payment = refundCandidates[paymentIndex]
+
+            val isFullRefund = !usedPaymentIndices.contains(paymentIndex) && Random.nextInt(100) < 10
+            val refundAmount = if (isFullRefund) {
                 payment.amount
+            } else {
+                (payment.amount * Random.nextDouble(0.05, 0.25)).toLong() / 100 * 100
             }
             usedPaymentIndices.add(paymentIndex)
             
@@ -348,26 +352,34 @@ class DataSeeder(
                 this.payment = payment
                 this.refundAmount = maxOf(refundAmount, 100) // Minimum 100 won
                 refundReason = REFUND_REASONS[Random.nextInt(REFUND_REASONS.size)]
-                status = generateRefundStatus(refundStatuses)
-                
-                // Set timestamps based on status
-                // 상태에 따른 타임스탬프 설정
-                val baseTime = payment.completedAt?.plus(Random.nextLong(1, 72), ChronoUnit.HOURS)
-                    ?: now.minus(Random.nextLong(1, 30), ChronoUnit.DAYS)
-                
+                status = generateRefundStatus()
+
+                val base = (payment.completedAt ?: payment.processedAt ?: payment.requestedAt)
+
+                val earliestRequestedAt = base.plus(Duration.ofMinutes(1))
+                val latestRequestedAt = minOf(base.plus(Duration.ofHours(6)), latestRefundRequestedAt)
+                val refundRequestedAt = if (latestRequestedAt.isAfter(earliestRequestedAt)) {
+                    val rangeMs = Duration.between(earliestRequestedAt, latestRequestedAt).toMillis().coerceAtLeast(1)
+                    earliestRequestedAt.plusMillis(Random.nextLong(rangeMs))
+                } else {
+                    earliestRequestedAt
+                }
+
+                requestedAt = refundRequestedAt
+
                 when (status) {
                     RefundStatus.REFUND_COMPLETED -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 60), ChronoUnit.MINUTES)
-                        completedAt = baseTime.plus(Random.nextLong(60, 180), ChronoUnit.MINUTES)
+                        processedAt = requestedAt.plusMillis(sampleRefundProcessingDelayMs())
+                        completedAt = processedAt!!.plusMillis(sampleRefundSettlementDelayMs())
                     }
                     RefundStatus.REFUND_FAILED -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 30), ChronoUnit.MINUTES)
+                        processedAt = requestedAt.plusMillis(sampleRefundProcessingDelayMs())
                         failureReason = listOf(
                             "환불 기간 초과", "계좌 정보 오류", "시스템 오류", "환불 불가 상품"
                         ).random()
                     }
                     RefundStatus.REFUND_PROCESSING -> {
-                        processedAt = baseTime.plus(Random.nextLong(1, 10), ChronoUnit.MINUTES)
+                        processedAt = requestedAt.plusMillis(sampleRefundProcessingDelayMs())
                     }
                     else -> { /* REFUND_PENDING - no additional timestamps */ }
                 }
@@ -419,7 +431,6 @@ class DataSeeder(
                 return@repeat
             }
             batch.add(createAdminUser(
-                index = index,
                 email = email,
                 role = if (index < 5) UserRole.ADMIN else roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.OPERATOR,
@@ -443,7 +454,6 @@ class DataSeeder(
             }
 
             batch.add(createAdminUser(
-                index = operatorCount + index,
                 email = email,
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.HEADQUARTERS,
@@ -473,7 +483,6 @@ class DataSeeder(
             }
 
             batch.add(createAdminUser(
-                index = operatorCount + hqAdminCount + index,
                 email = email,
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.MERCHANT,
@@ -505,7 +514,6 @@ class DataSeeder(
     // ======== Helper Methods / 헬퍼 메서드 ========
     
     private fun createAdminUser(
-        index: Int,
         email: String,
         role: UserRole,
         tenantType: TenantType,
@@ -528,27 +536,71 @@ class DataSeeder(
         val suffixes = listOf("점", "역점", "본점", "지점", "센터점")
         return "${districts[index % districts.size]}${suffixes[Random.nextInt(suffixes.size)]}"
     }
-    
-    private fun generatePaymentStatus(statuses: Array<PaymentStatus>): PaymentStatus {
-        // Weight towards completed status for realistic data
-        // 현실적인 데이터를 위해 완료 상태에 가중치 부여
-        return when (Random.nextInt(100)) {
-            in 0..69 -> PaymentStatus.PAYMENT_COMPLETED    // 70%
-            in 70..79 -> PaymentStatus.PAYMENT_FAILED      // 10%
-            in 80..89 -> PaymentStatus.PAYMENT_PROCESSING  // 10%
-            in 90..94 -> PaymentStatus.PAYMENT_PENDING     // 5%
-            else -> PaymentStatus.PAYMENT_CANCELLED        // 5%
+
+    private fun generatePaymentStatus(): PaymentStatus {
+        return when (Random.nextInt(1000)) {
+            in 0..974 -> PaymentStatus.PAYMENT_COMPLETED    // 97.5%
+            in 975..976 -> PaymentStatus.PAYMENT_FAILED     // 0.2%
+            in 977..991 -> PaymentStatus.PAYMENT_PROCESSING // 1.5%
+            in 992..995 -> PaymentStatus.PAYMENT_PENDING    // 0.4%
+            else -> PaymentStatus.PAYMENT_CANCELLED         // 0.4%
         }
     }
-    
-    private fun generateRefundStatus(statuses: Array<RefundStatus>): RefundStatus {
-        // Weight towards completed status for realistic data
-        // 현실적인 데이터를 위해 완료 상태에 가중치 부여
-        return when (Random.nextInt(100)) {
-            in 0..74 -> RefundStatus.REFUND_COMPLETED    // 75%
-            in 75..84 -> RefundStatus.REFUND_FAILED      // 10%
-            in 85..94 -> RefundStatus.REFUND_PROCESSING  // 10%
-            else -> RefundStatus.REFUND_PENDING          // 5%
+
+    private fun samplePaymentProcessingDelayMs(status: PaymentStatus): Long {
+        val roll = Random.nextInt(1000)
+        val base = when (roll) {
+            in 0..799 -> Random.nextLong(80, 260)     // 80%: fast path
+            in 800..949 -> Random.nextLong(260, 650)  // 15%: normal path
+            in 950..989 -> Random.nextLong(650, 1200) // 4%: slow-ish tail
+            else -> Random.nextLong(1200, 2500)       // 1%: rare outliers
+        }
+        return when (status) {
+            PaymentStatus.PAYMENT_FAILED -> (base * 1.25).toLong().coerceAtMost(5000)
+            PaymentStatus.PAYMENT_CANCELLED -> (base * 1.10).toLong().coerceAtMost(5000)
+            else -> base
+        }
+    }
+
+    private fun samplePaymentSettlementDelayMs(): Long {
+        return when (Random.nextInt(1000)) {
+            in 0..899 -> Random.nextLong(20, 160)   // 90%
+            in 900..989 -> Random.nextLong(160, 420) // 9%
+            else -> Random.nextLong(420, 900)        // 1%
+        }
+    }
+
+    private fun samplePaymentCancellationDelayMs(): Long {
+        return when (Random.nextInt(1000)) {
+            in 0..899 -> Random.nextLong(60, 300)    // 90%
+            in 900..989 -> Random.nextLong(300, 900) // 9%
+            else -> Random.nextLong(900, 2000)       // 1%
+        }
+    }
+
+    private fun generateRefundStatus(): RefundStatus {
+        return when (Random.nextInt(1000)) {
+            in 0..959 -> RefundStatus.REFUND_COMPLETED    // 96.0%
+            in 960..964 -> RefundStatus.REFUND_FAILED     // 0.5%
+            in 965..984 -> RefundStatus.REFUND_PROCESSING // 2.0%
+            else -> RefundStatus.REFUND_PENDING           // 1.5%
+        }
+    }
+
+    private fun sampleRefundProcessingDelayMs(): Long {
+        return when (Random.nextInt(1000)) {
+            in 0..799 -> Random.nextLong(800, 3_000)     // 80%
+            in 800..949 -> Random.nextLong(3_000, 8_000) // 15%
+            in 950..989 -> Random.nextLong(8_000, 20_000) // 4%
+            else -> Random.nextLong(20_000, 60_000)      // 1%
+        }
+    }
+
+    private fun sampleRefundSettlementDelayMs(): Long {
+        return when (Random.nextInt(1000)) {
+            in 0..899 -> Random.nextLong(2_000, 15_000)   // 90%
+            in 900..989 -> Random.nextLong(15_000, 60_000) // 9%
+            else -> Random.nextLong(60_000, 180_000)       // 1%
         }
     }
     
