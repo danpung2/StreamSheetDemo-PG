@@ -1,6 +1,7 @@
 package com.example.pgdemo.main.service
 
 import com.example.pgdemo.common.domain.entity.Merchant
+import com.example.pgdemo.common.domain.repository.HeadquartersRepository
 import com.example.pgdemo.common.domain.repository.MerchantRepository
 import com.example.pgdemo.main.dto.MerchantRequest
 import com.example.pgdemo.main.dto.MerchantResponse
@@ -13,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class MerchantService(
-    private val merchantRepository: MerchantRepository
+    private val merchantRepository: MerchantRepository,
+    private val headquartersRepository: HeadquartersRepository
 ) {
     @Transactional
     fun createMerchant(request: MerchantRequest): MerchantResponse {
@@ -32,7 +34,37 @@ class MerchantService(
             storeNumber = request.storeNumber
         }
 
+        merchant.headquarters = inferHeadquartersFromName(merchant.name)
+
         return merchantRepository.save(merchant).toResponse()
+    }
+
+    @Transactional
+    fun backfillHeadquartersForOrphanMerchants(limit: Int = 500) {
+        val page = merchantRepository.findByHeadquartersIsNull(org.springframework.data.domain.PageRequest.of(0, limit))
+        if (page.isEmpty) {
+            return
+        }
+
+        page.content.forEach { merchant ->
+            val name = merchant.name
+            val hq = inferHeadquartersFromName(name)
+            if (hq != null) {
+                merchant.headquarters = hq
+                merchantRepository.save(merchant)
+            }
+        }
+    }
+
+    private fun inferHeadquartersFromName(name: String): com.example.pgdemo.common.domain.entity.Headquarters? {
+        val brand = name.trim().split(Regex("\\s+"), limit = 2).firstOrNull()?.trim().orEmpty()
+        if (brand.isBlank()) {
+            return null
+        }
+
+        val candidates = headquartersRepository.findByName(brand)
+            .filter { it.status == "ACTIVE" && it.id != null }
+        return if (candidates.size == 1) candidates.first() else null
     }
 
     @Transactional(readOnly = true)
