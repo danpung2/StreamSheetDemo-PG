@@ -31,7 +31,8 @@ class PaymentExportJobController(
         val fromUtc: Instant,
         val toUtc: Instant,
         val headquartersId: UUID?,
-        val merchantId: UUID?
+        val merchantId: UUID?,
+        val transactionStatus: String?
     )
 
     data class CreateJobResponse(
@@ -43,7 +44,8 @@ class PaymentExportJobController(
         @RequestParam("fromUtc") fromUtc: String,
         @RequestParam("toUtc") toUtc: String,
         @RequestParam("headquartersId", required = false) headquartersId: String?,
-        @RequestParam("merchantId", required = false) merchantId: String?
+        @RequestParam("merchantId", required = false) merchantId: String?,
+        @RequestParam("transactionStatus", required = false) transactionStatus: String?
     ): String {
         val parsedFromUtc = LocalDateTime.parse(fromUtc).toInstant(ZoneOffset.UTC)
         val parsedToUtc = LocalDateTime.parse(toUtc).toInstant(ZoneOffset.UTC)
@@ -55,7 +57,8 @@ class PaymentExportJobController(
                 fromUtc = parsedFromUtc,
                 toUtc = parsedToUtc,
                 headquartersId = parsedHeadquartersId,
-                merchantId = parsedMerchantId
+                merchantId = parsedMerchantId,
+                transactionStatus = transactionStatus?.trim()?.takeIf { it.isNotBlank() }
             ),
             requestedBy = requestedBy
         )
@@ -71,7 +74,8 @@ class PaymentExportJobController(
                 fromUtc = request.fromUtc,
                 toUtc = request.toUtc,
                 headquartersId = request.headquartersId,
-                merchantId = request.merchantId
+                merchantId = request.merchantId,
+                transactionStatus = request.transactionStatus?.trim()?.takeIf { it.isNotBlank() }
             ),
             requestedBy = requestedBy
         )
@@ -115,7 +119,7 @@ class PaymentExportJobController(
 
         val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
             .withZone(java.time.ZoneOffset.UTC)
-        val filename = "payments_export_${formatter.format(job.fromUtc)}_${formatter.format(job.toUtc)}.xlsx"
+        val filename = "transactions_export_${formatter.format(job.fromUtc)}_${formatter.format(job.toUtc)}.xlsx"
         response.contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         response.setHeader("Content-Disposition", "attachment; filename=\"$filename\"")
 

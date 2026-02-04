@@ -34,7 +34,8 @@ class PaymentExportJobService(
         val fromUtc: Instant,
         val toUtc: Instant,
         val headquartersId: UUID?,
-        val merchantId: UUID?
+        val merchantId: UUID?,
+        val transactionStatus: String?
     )
 
     fun createJob(request: CreateRequest, requestedBy: String): ExportJob {
@@ -62,6 +63,7 @@ class PaymentExportJobService(
             merchantId = resolvedMerchantId,
             fromUtc = request.fromUtc,
             toUtc = request.toUtc,
+            transactionStatus = request.transactionStatus,
             status = ExportJobStatus.QUEUED,
             progressLabel = "조회 준비",
             queuedAt = now,
@@ -184,12 +186,13 @@ class PaymentExportJobService(
         TenantContext.set(tenantInfo)
         try {
             java.io.FileOutputStream(outputLocation).use { outputStream ->
-                exportService.exportPayments(
+                exportService.exportTransactions(
                     fromUtc = job.fromUtc,
                     toUtcExclusive = job.toUtc,
                     outputStream = outputStream,
                     headquartersId = job.headquartersId,
-                    merchantId = job.merchantId
+                    merchantId = job.merchantId,
+                    transactionStatus = job.transactionStatus
                 )
             }
         } finally {

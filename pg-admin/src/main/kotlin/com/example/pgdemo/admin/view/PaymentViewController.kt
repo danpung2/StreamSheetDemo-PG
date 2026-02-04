@@ -6,9 +6,11 @@ import com.example.pgdemo.admin.export.PaymentExportJobService
 import com.example.pgdemo.admin.tenant.TenantContext
 import com.example.pgdemo.common.domain.enum.ExportJobStatus
 import com.example.pgdemo.common.domain.enum.PaymentStatus
+import com.example.pgdemo.common.domain.enum.RefundStatus
 import com.example.pgdemo.common.domain.enum.TenantType
 import com.example.pgdemo.common.domain.repository.HeadquartersRepository
 import com.example.pgdemo.common.domain.repository.MerchantRepository
+import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
 import java.text.NumberFormat
 import java.time.Duration
 import java.time.Instant
@@ -32,7 +34,8 @@ class PaymentViewController(
     private val pgMainApiClient: PgMainApiClient,
     private val paymentExportJobService: PaymentExportJobService,
     private val headquartersRepository: HeadquartersRepository,
-    private val merchantRepository: MerchantRepository
+    private val merchantRepository: MerchantRepository,
+    private val refundTransactionRepository: RefundTransactionRepository
 ) {
 
     @GetMapping("/payments")
@@ -43,10 +46,10 @@ class PaymentViewController(
         @RequestParam(name = "to", required = false) toUtc: String?,
         @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
         @RequestParam(name = "merchantId", required = false) merchantId: String?,
-        @RequestParam(name = "status", required = false) status: PaymentStatus?,
+        @RequestParam(name = "status", required = false) status: String?,
         model: Model
     ): String {
-        model.addAttribute("pageTitle", "Payments")
+        model.addAttribute("pageTitle", "Transactions")
         val safePage = page.coerceAtLeast(0)
         val safeSize = size.coerceIn(1, 200)
 
@@ -145,8 +148,23 @@ class PaymentViewController(
         model.addAttribute("toUtcLocal", inputFormatter.format(resolvedToUtc))
         model.addAttribute("headquartersId", resolvedHeadquartersId?.toString() ?: "")
         model.addAttribute("merchantId", resolvedMerchantId?.toString() ?: "")
-        model.addAttribute("status", status?.name ?: "")
-        model.addAttribute("statusOptions", PaymentStatus.values().map { it.name })
+
+        val trimmedStatus = status?.trim()?.takeIf { it.isNotBlank() }
+        val paymentStatusFilter = trimmedStatus?.let { runCatching { PaymentStatus.valueOf(it) }.getOrNull() }
+        val refundStatusFilter = trimmedStatus?.let { runCatching { RefundStatus.valueOf(it) }.getOrNull() }
+        if (trimmedStatus != null && paymentStatusFilter == null && refundStatusFilter == null) {
+            filterError = "Invalid status"
+        }
+
+        if (filterError != null) {
+            model.addAttribute("filterError", filterError)
+        }
+
+        model.addAttribute("status", trimmedStatus ?: "")
+        model.addAttribute(
+            "statusOptions",
+            PaymentStatus.values().map { it.name } + RefundStatus.values().map { it.name }
+        )
 
         val headquartersOptions = when (tenantInfo.tenantType) {
             TenantType.OPERATOR -> {
@@ -188,104 +206,222 @@ class PaymentViewController(
         }
         model.addAttribute("merchantOptions", merchantOptions)
 
+        val showPayments = trimmedStatus == null || paymentStatusFilter != null
+        val showRefunds = trimmedStatus == null || refundStatusFilter != null
+
+        // Export supports both payments and refunds.
+        model.addAttribute("exportEnabled", true)
+
+        val fetchSize = ((safePage + 1) * safeSize).coerceIn(1, 200)
+
         var loadError = false
-        val paymentPage = try {
-            pgMainApiClient.listPayments(
-                page = safePage,
-                size = safeSize,
-                fromUtc = resolvedFromUtc,
-                toUtc = resolvedToUtc,
-                headquartersId = resolvedHeadquartersId,
-                merchantId = resolvedMerchantId,
-                status = status
-            )
-        } catch (ex: RestClientException) {
-            loadError = true
+        val paymentPage = if (showPayments) {
+            try {
+                pgMainApiClient.listPayments(
+                    page = 0,
+                    size = fetchSize,
+                    fromUtc = resolvedFromUtc,
+                    toUtc = resolvedToUtc,
+                    headquartersId = resolvedHeadquartersId,
+                    merchantId = resolvedMerchantId,
+                    status = paymentStatusFilter
+                )
+            } catch (ex: RestClientException) {
+                loadError = true
+                null
+            }
+        } else {
             null
         }
 
-        val paymentResponses = paymentPage?.content.orEmpty()
-        val totalElements = paymentPage?.totalElements ?: 0
-        val currentPage = paymentPage?.number ?: safePage
-        val pageSize = paymentPage?.size?.takeIf { it > 0 } ?: safeSize
-        val totalPages = if (totalElements == 0L) {
-            0
+        val refundPage = if (showRefunds) {
+            val pageable = PageRequest.of(
+                0,
+                fetchSize,
+                Sort.by(Sort.Direction.DESC, "requestedAt").and(Sort.by(Sort.Direction.DESC, "id"))
+            )
+            when {
+                resolvedMerchantId != null ->
+                    refundTransactionRepository.findByMerchantIdAndRequestedAtBetweenAndStatus(
+                        merchantId = resolvedMerchantId,
+                        startDate = resolvedFromUtc,
+                        endDate = resolvedToUtc,
+                        status = refundStatusFilter,
+                        pageable = pageable
+                    )
+                resolvedHeadquartersId != null ->
+                    refundTransactionRepository.findByHeadquartersIdAndRequestedAtBetweenAndStatus(
+                        headquartersId = resolvedHeadquartersId,
+                        startDate = resolvedFromUtc,
+                        endDate = resolvedToUtc,
+                        status = refundStatusFilter,
+                        pageable = pageable
+                    )
+                refundStatusFilter != null ->
+                    refundTransactionRepository.findByRequestedAtBetweenAndStatus(resolvedFromUtc, resolvedToUtc, refundStatusFilter, pageable)
+                else ->
+                    refundTransactionRepository.findByRequestedAtBetween(resolvedFromUtc, resolvedToUtc, pageable)
+            }
         } else {
-            ((totalElements + pageSize - 1) / pageSize).toInt()
+            null
         }
 
-        model.addAttribute("pageNumber", currentPage)
-        model.addAttribute("pageSize", pageSize)
-        model.addAttribute("totalElements", totalElements)
-        model.addAttribute("totalPages", totalPages)
-        model.addAttribute("hasPrev", currentPage > 0)
-        model.addAttribute("hasNext", totalPages > 0 && (currentPage + 1) < totalPages)
-        model.addAttribute("prevPage", (currentPage - 1).coerceAtLeast(0))
-        model.addAttribute("nextPage", currentPage + 1)
+        data class TxRow(val requestedAt: Instant, val row: Map<String, String>)
 
-        val merchantsById = merchantRepository.findByIdIn(paymentResponses.map { it.merchantId }.distinct())
-            .associateBy { it.id }
-        model.addAttribute(
-            "payments",
-            paymentResponses.map { payment ->
-                val merchantName = merchantsById[payment.merchantId]?.name ?: payment.merchantId.toString()
-                mapOf(
+        val paymentRows = paymentPage?.content.orEmpty().map { payment ->
+            TxRow(
+                requestedAt = payment.requestedAt,
+                row = mapOf(
                     "id" to payment.id.toString(),
-                    "merchant" to merchantName,
+                    "type" to "Payment",
                     "amount" to formatAmount(payment.amount),
-                    "method" to payment.paymentMethod,
-                    "status" to formatStatus(payment.status),
-                    "statusClass" to statusClass(payment.status),
+                    "status" to formatPaymentStatus(payment.status),
+                    "statusClass" to paymentStatusClass(payment.status),
                     "createdAt" to formatInstant(payment.requestedAt)
                 )
-            }
-        )
+            )
+        }
+
+        val refundRows = refundPage?.content.orEmpty().mapNotNull { refund ->
+            val id = refund.id ?: return@mapNotNull null
+            TxRow(
+                requestedAt = refund.requestedAt,
+                row = mapOf(
+                    "id" to id.toString(),
+                    "type" to "Refund",
+                    "amount" to formatAmount(refund.refundAmount),
+                    "status" to formatRefundStatus(refund.status),
+                    "statusClass" to refundStatusClass(refund.status),
+                    "createdAt" to formatInstant(refund.requestedAt)
+                )
+            )
+        }
+
+        val combined = (paymentRows + refundRows)
+            .sortedWith(
+                compareByDescending<TxRow> { it.requestedAt }
+                    .thenByDescending { it.row["id"] ?: "" }
+            )
+
+        val start = (safePage * safeSize).coerceAtLeast(0)
+        val endExclusive = (start + safeSize).coerceAtMost(combined.size)
+        val pageItems = if (start >= combined.size) emptyList() else combined.subList(start, endExclusive)
+
+        val paymentTotal = if (showPayments) (paymentPage?.totalElements ?: 0L) else 0L
+        val refundTotal = if (showRefunds) (refundPage?.totalElements ?: 0L) else 0L
+        val totalElements = paymentTotal + refundTotal
+        val totalPages = if (totalElements == 0L) 0 else ((totalElements + safeSize - 1) / safeSize).toInt()
+
+        model.addAttribute("pageNumber", safePage)
+        model.addAttribute("pageSize", safeSize)
+        model.addAttribute("totalElements", totalElements)
+        model.addAttribute("totalPages", totalPages)
+        model.addAttribute("hasPrev", safePage > 0)
+        model.addAttribute("hasNext", totalPages > 0 && (safePage + 1) < totalPages)
+        model.addAttribute("prevPage", (safePage - 1).coerceAtLeast(0))
+        model.addAttribute("nextPage", safePage + 1)
+
+        model.addAttribute("transactions", pageItems.map { it.row })
+
         if (loadError) {
             model.addAttribute("loadError", true)
         }
         return "payments/list"
     }
 
-    @GetMapping("/payments/{paymentId}")
-    fun paymentDetail(@PathVariable paymentId: String, model: Model): String {
-        model.addAttribute("pageTitle", "Payment Detail")
+    @GetMapping("/payments/{transactionId}")
+    fun paymentDetail(@PathVariable("transactionId") transactionId: String, model: Model): String {
+        model.addAttribute("pageTitle", "Transaction Detail")
         var loadError = false
-        val paymentUuid = runCatching { UUID.fromString(paymentId) }.getOrNull()
-        val payment = if (paymentUuid != null) {
+
+        val txUuid = runCatching { UUID.fromString(transactionId) }.getOrNull()
+
+        val payment = if (txUuid != null) {
             try {
-                pgMainApiClient.getPayment(paymentUuid)
+                pgMainApiClient.getPayment(txUuid)
             } catch (ex: RestClientException) {
-                loadError = true
                 null
             }
         } else {
-            loadError = true
             null
         }
 
-        val merchantName = if (payment != null) {
-            try {
+        if (payment != null) {
+            val merchantName = try {
                 pgMainApiClient.getMerchant(payment.merchantId)?.name ?: payment.merchantId.toString()
             } catch (ex: RestClientException) {
                 loadError = true
                 payment.merchantId.toString()
             }
-        } else {
-            "-"
-        }
-        model.addAttribute(
-            "payment",
-            mapOf(
-                "id" to (payment?.id?.toString() ?: paymentId),
-                "merchant" to merchantName,
-                "amount" to (payment?.amount?.let { formatAmount(it) } ?: "-"),
-                "method" to (payment?.paymentMethod ?: "-"),
-                "customer" to (payment?.orderId ?: "-"),
-                "status" to (payment?.status?.let { formatStatus(it) } ?: "-"),
-                "statusClass" to (payment?.status?.let { statusClass(it) } ?: "warning"),
-                "events" to buildEvents(payment)
+
+            model.addAttribute(
+                "payment",
+                mapOf(
+                    "id" to payment.id.toString(),
+                    "merchant" to merchantName,
+                    "amount" to formatAmount(payment.amount),
+                    "method" to payment.paymentMethod,
+                    "customer" to payment.orderId,
+                    "status" to formatPaymentStatus(payment.status),
+                    "statusClass" to paymentStatusClass(payment.status),
+                    "events" to buildPaymentEvents(payment)
+                )
             )
-        )
+        } else {
+            val refund = txUuid?.let { refundTransactionRepository.findById(it).orElse(null) }
+            if (refund != null) {
+                val paymentId = refund.payment.id?.toString() ?: "-"
+
+                val paymentForRefund = refund.payment.id?.let { pid ->
+                    try {
+                        pgMainApiClient.getPayment(pid)
+                    } catch (ex: RestClientException) {
+                        loadError = true
+                        null
+                    }
+                }
+
+                val merchantName = if (paymentForRefund != null) {
+                    try {
+                        pgMainApiClient.getMerchant(paymentForRefund.merchantId)?.name ?: paymentForRefund.merchantId.toString()
+                    } catch (ex: RestClientException) {
+                        loadError = true
+                        paymentForRefund.merchantId.toString()
+                    }
+                } else {
+                    "-"
+                }
+                model.addAttribute(
+                    "payment",
+                    mapOf(
+                        "id" to (refund.id?.toString() ?: transactionId),
+                        "merchant" to merchantName,
+                        "amount" to formatAmount(refund.refundAmount),
+                        "method" to (paymentForRefund?.paymentMethod ?: "-"),
+                        "customer" to (paymentForRefund?.orderId ?: "-"),
+                        "status" to formatRefundStatus(refund.status),
+                        "statusClass" to refundStatusClass(refund.status),
+                        "events" to buildCombinedEvents(paymentForRefund, refund, paymentId)
+                    )
+                )
+            } else {
+                loadError = true
+                model.addAttribute(
+                    "payment",
+                    mapOf(
+                        "id" to transactionId,
+                        "merchant" to "-",
+                        "amount" to "-",
+                        "method" to "-",
+                        "customer" to "-",
+                        "status" to "-",
+                        "statusClass" to "warning",
+                        "events" to emptyList<Map<String, String>>()
+                    )
+                )
+            }
+        }
+
         if (loadError) {
             model.addAttribute("loadError", true)
         }
@@ -304,6 +440,11 @@ class PaymentViewController(
         model: Model
     ): String {
         model.addAttribute("pageTitle", "Exports")
+
+        model.addAttribute(
+            "transactionStatusOptions",
+            PaymentStatus.values().map { it.name } + RefundStatus.values().map { it.name }
+        )
 
         val safePage = page.coerceAtLeast(0)
         val safeSize = size.coerceIn(1, 200)
@@ -450,10 +591,7 @@ class PaymentViewController(
         }
     }
 
-    private fun buildEvents(payment: PaymentResponse?): List<Map<String, String>> {
-        if (payment == null) {
-            return emptyList()
-        }
+    private fun buildPaymentEvents(payment: PaymentResponse): List<Map<String, String>> {
 
         val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
             .withZone(ZoneOffset.UTC)
@@ -464,8 +602,8 @@ class PaymentViewController(
         events.add(
             payment.requestedAt to mapOf(
                 "time" to fmtTime(payment.requestedAt),
-                "title" to "Requested",
-                "note" to "orderId=${payment.orderId}"
+                "title" to "Payment Requested",
+                "note" to payment.orderId
             )
         )
 
@@ -473,23 +611,189 @@ class PaymentViewController(
             events.add(
                 it to mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Processed",
-                    "note" to (payment.failureReason?.let { reason -> "failureReason=$reason" } ?: "-")
+                    "title" to "Payment Processed",
+                    "note" to "-"
+                )
+            )
+        }
+
+        if (payment.status == PaymentStatus.PAYMENT_FAILED) {
+            val failTime = payment.processedAt
+                ?.plusMillis(1)
+                ?: payment.completedAt
+                ?: payment.requestedAt
+            events.add(
+                failTime to mapOf(
+                    "time" to fmtTime(failTime),
+                    "title" to "Payment Failed",
+                    "note" to (payment.failureReason ?: "-")
                 )
             )
         }
 
         payment.completedAt?.let {
+            val completedTitle = if (payment.status == PaymentStatus.PAYMENT_CANCELLED) "Cancelled" else "Completed"
             events.add(
                 it to mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Completed",
-                    "note" to "status=${payment.status}"
+                    "title" to "Payment $completedTitle",
+                    "note" to "-"
                 )
             )
         }
 
-        return events.sortedBy { it.first }.map { it.second }
+        return events.sortedByDescending { it.first }.map { it.second }
+    }
+
+    private fun buildRefundEvents(refund: com.example.pgdemo.common.domain.entity.RefundTransaction, paymentId: String): List<Map<String, String>> {
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
+            .withZone(ZoneOffset.UTC)
+        fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
+
+        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
+
+        events.add(
+            refund.requestedAt to mapOf(
+                "time" to fmtTime(refund.requestedAt),
+                "title" to "Refund Requested",
+                "note" to paymentId
+            )
+        )
+
+        refund.processedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Refund Processed",
+                    "note" to paymentId
+                )
+            )
+        }
+
+        if (refund.status == RefundStatus.REFUND_FAILED) {
+            val failBase = refund.processedAt ?: refund.completedAt ?: refund.requestedAt
+            val failTime = failBase.plusMillis(1)
+            val reason = refund.failureReason ?: "-"
+            events.add(
+                failTime to mapOf(
+                    "time" to fmtTime(failTime),
+                    "title" to "Refund Failed",
+                    "note" to "$reason | $paymentId"
+                )
+            )
+        }
+
+        refund.completedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Refund Completed",
+                    "note" to paymentId
+                )
+            )
+        }
+
+        return events.sortedByDescending { it.first }.map { it.second }
+    }
+
+    private fun buildCombinedEvents(
+        payment: PaymentResponse?,
+        refund: com.example.pgdemo.common.domain.entity.RefundTransaction,
+        paymentId: String
+    ): List<Map<String, String>> {
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
+            .withZone(ZoneOffset.UTC)
+        fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
+
+        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
+
+        if (payment != null) {
+            events.add(
+                payment.requestedAt to mapOf(
+                    "time" to fmtTime(payment.requestedAt),
+                    "title" to "Payment Requested",
+                    "note" to "order id: ${payment.orderId}"
+                )
+            )
+
+            payment.processedAt?.let {
+                events.add(
+                    it to mapOf(
+                        "time" to fmtTime(it),
+                        "title" to "Payment Processed",
+                        "note" to "-"
+                    )
+                )
+            }
+
+            if (payment.status == PaymentStatus.PAYMENT_FAILED) {
+                val failTime = payment.processedAt
+                    ?.plusMillis(1)
+                    ?: payment.completedAt
+                    ?: payment.requestedAt
+                events.add(
+                    failTime to mapOf(
+                        "time" to fmtTime(failTime),
+                        "title" to "Payment Failed",
+                        "note" to (payment.failureReason ?: "-")
+                    )
+                )
+            }
+
+            payment.completedAt?.let {
+                val completedTitle = if (payment.status == PaymentStatus.PAYMENT_CANCELLED) "Cancelled" else "Completed"
+                events.add(
+                    it to mapOf(
+                        "time" to fmtTime(it),
+                        "title" to "Payment $completedTitle",
+                        "note" to "-"
+                    )
+                )
+            }
+        }
+
+        events.add(
+            refund.requestedAt to mapOf(
+                "time" to fmtTime(refund.requestedAt),
+                "title" to "Refund Requested",
+                "note" to "payment id: $paymentId"
+            )
+        )
+
+        refund.processedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Refund Processed",
+                    "note" to "-"
+                )
+            )
+        }
+
+        if (refund.status == RefundStatus.REFUND_FAILED) {
+            val failBase = refund.processedAt ?: refund.completedAt ?: refund.requestedAt
+            val failTime = failBase.plusMillis(1)
+            val reason = refund.failureReason ?: "-"
+            events.add(
+                failTime to mapOf(
+                    "time" to fmtTime(failTime),
+                    "title" to "Refund Failed",
+                    "note" to "reason: $reason | -"
+                )
+            )
+        }
+
+        refund.completedAt?.let {
+            events.add(
+                it to mapOf(
+                    "time" to fmtTime(it),
+                    "title" to "Refund Completed",
+                    "note" to "-"
+                )
+            )
+        }
+
+        return events.sortedByDescending { it.first }.map { it.second }
     }
 
     private fun formatAmount(amount: Long): String {
@@ -506,21 +810,38 @@ class PaymentViewController(
         return formatter.format(instant)
     }
 
-    private fun formatStatus(status: PaymentStatus): String {
+    private fun formatPaymentStatus(status: PaymentStatus): String {
         return when (status) {
-            PaymentStatus.PAYMENT_PENDING -> "Pending"
-            PaymentStatus.PAYMENT_PROCESSING -> "Processing"
-            PaymentStatus.PAYMENT_COMPLETED -> "Completed"
-            PaymentStatus.PAYMENT_FAILED -> "Failed"
-            PaymentStatus.PAYMENT_CANCELLED -> "Cancelled"
+            PaymentStatus.PAYMENT_PENDING -> "Payment Pending"
+            PaymentStatus.PAYMENT_PROCESSING -> "Payment Processing"
+            PaymentStatus.PAYMENT_COMPLETED -> "Payment Completed"
+            PaymentStatus.PAYMENT_FAILED -> "Payment Failed"
+            PaymentStatus.PAYMENT_CANCELLED -> "Payment Cancelled"
         }
     }
 
-    private fun statusClass(status: PaymentStatus): String {
+    private fun formatRefundStatus(status: RefundStatus): String {
+        return when (status) {
+            RefundStatus.REFUND_PENDING -> "Refund Pending"
+            RefundStatus.REFUND_PROCESSING -> "Refund Processing"
+            RefundStatus.REFUND_COMPLETED -> "Refund Completed"
+            RefundStatus.REFUND_FAILED -> "Refund Failed"
+        }
+    }
+
+    private fun paymentStatusClass(status: PaymentStatus): String {
         return when (status) {
             PaymentStatus.PAYMENT_COMPLETED -> "success"
             PaymentStatus.PAYMENT_FAILED, PaymentStatus.PAYMENT_CANCELLED -> "danger"
             PaymentStatus.PAYMENT_PENDING, PaymentStatus.PAYMENT_PROCESSING -> "warning"
+        }
+    }
+
+    private fun refundStatusClass(status: RefundStatus): String {
+        return when (status) {
+            RefundStatus.REFUND_COMPLETED -> "success"
+            RefundStatus.REFUND_FAILED -> "danger"
+            RefundStatus.REFUND_PENDING, RefundStatus.REFUND_PROCESSING -> "warning"
         }
     }
 }

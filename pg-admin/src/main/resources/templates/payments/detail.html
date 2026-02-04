@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Payment Detail'">
   <section class="page">
-    <div th:replace="fragments/header :: header('Payment detail')"></div>
+    <div th:replace="fragments/header :: header('Transaction detail')"></div>
     <div class="shell">
       <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
       <main class="main">
         <section class="panel detail">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Payment</p>
+              <p class="eyebrow">Transaction</p>
             <h2 th:text="${payment.id}">-</h2>
             </div>
             <span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">-</span>
@@ -33,13 +33,27 @@
           </div>
           <div class="panel-section">
             <h3>Timeline</h3>
-            <ul class="timeline">
-              <li th:each="event : ${payment.events}">
-                <span class="timeline-time" th:text="${event.time}">-</span>
-                <span class="timeline-title" th:text="${event.title}">-</span>
-                <span class="timeline-note" th:text="${event.note}">-</span>
-              </li>
-            </ul>
+            <div class="table-wrap">
+              <table class="event-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="event : ${payment.events}">
+                    <td class="event-time" th:text="${event.time}">-</td>
+                    <td class="event-status" th:text="${event.title}">-</td>
+                    <td class="event-note" th:text="${event.note}">-</td>
+                  </tr>
+                  <tr th:if="${payment.events == null or #lists.isEmpty(payment.events)}">
+                    <td colspan="3" class="empty">No events.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>

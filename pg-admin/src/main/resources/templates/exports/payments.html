@@ -7,7 +7,7 @@
       <main class="main">
         <section class="panel">
           <div class="panel-header">
-            <h2>Payments exports</h2>
+            <h2>Transactions exports</h2>
             <form method="post" action="/admin/exports/payments/jobs" class="filters" id="paymentExportCreateForm">
               <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
               <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
@@ -20,6 +20,11 @@
               <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
                 <option value="" th:selected="${merchantId == ''}">All Merchants</option>
                 <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
+              </select>
+
+              <select name="transactionStatus" th:if="${transactionStatusOptions != null and !#lists.isEmpty(transactionStatusOptions)}">
+                <option value="" selected>All Status</option>
+                <option th:each="s : ${transactionStatusOptions}" th:value="${s}" th:text="${s}">-</option>
               </select>
 
               <button class="button primary" type="submit">Request export</button>

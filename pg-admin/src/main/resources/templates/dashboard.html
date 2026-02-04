@@ -32,7 +32,7 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Warnings</h2>
-            <a class="button ghost" th:href="@{/admin/payments(from=${paymentsLinkFrom},to=${paymentsLinkTo})}">Payments (24h)</a>
+            <a class="button ghost" th:href="@{/admin/payments(from=${paymentsLinkFrom},to=${paymentsLinkTo})}">Transactions (24h)</a>
           </div>
           <div class="table-wrap">
             <table>
@@ -110,11 +110,11 @@
                   <td th:text="${exportStatus.exportJobQueuedAt}">-</td>
                   <td th:text="${exportStatus.exportJobFinishedAt}">-</td>
                 </tr>
-                <tr>
-                  <td>Payment view synced</td>
-                  <td><span class="chip muted">Mongo</span></td>
-                  <td th:text="${exportStatus.paymentViewSyncedAt}">-</td>
+                <tr th:if="${exportStatus.paymentViewSyncedAt != '-'}">
+                  <td>Payment view synced (Mongo)</td>
+                  <td><span class="chip" th:text="${exportStatus.paymentViewSyncStatus}">-</span></td>
                   <td>-</td>
+                  <td th:text="${exportStatus.paymentViewSyncedAt}">-</td>
                 </tr>
               </tbody>
             </table>

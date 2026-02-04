@@ -325,6 +325,7 @@ th {
   border: 1px solid rgba(42, 111, 111, 0.3);
 }
 
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -345,6 +346,26 @@ th {
   color: var(--muted-2);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.event-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.event-table th {
+  text-align: left;
+}
+
+.event-time,
+.event-status {
+  white-space: nowrap;
+}
+
+.event-note {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .timeline {

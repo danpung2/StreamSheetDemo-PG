@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
-  th:with="pageTitle='Payments'">
+  th:with="pageTitle='Transactions'">
   <section class="page">
-    <div th:replace="fragments/header :: header('Payments')"></div>
+    <div th:replace="fragments/header :: header('Transactions')"></div>
     <div class="shell">
       <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
       <main class="main">
         <section class="panel">
           <div class="panel-header">
-            <h2>Payments list</h2>
-            <form class="filters" method="get" action="/admin/payments">
+            <h2>Transactions list</h2>
+            <form class="filters" method="get" action="/admin/payments" id="transactionsFilterForm">
               <input type="datetime-local" name="from" th:value="${fromUtcLocal}" />
               <input type="datetime-local" name="to" th:value="${toUtcLocal}" />
 
@@ -36,6 +36,15 @@
 
               <button class="button ghost" type="submit">Apply</button>
             </form>
+
+            <form method="post" action="/admin/exports/payments/jobs" class="filters" id="transactionsExportForm">
+              <input type="hidden" name="fromUtc" th:value="${fromUtcLocal}" />
+              <input type="hidden" name="toUtc" th:value="${toUtcLocal}" />
+              <input type="hidden" name="headquartersId" th:value="${headquartersId}" />
+              <input type="hidden" name="merchantId" th:value="${merchantId}" />
+              <input type="hidden" name="transactionStatus" th:value="${status}" />
+              <button class="button primary" type="submit">Export</button>
+            </form>
           </div>
 
           <div class="filters" th:if="${filterError != null}">
@@ -56,27 +65,25 @@
           <table>
             <thead>
               <tr>
-                <th>Payment ID</th>
-                <th>Merchant</th>
+                <th>Transaction ID</th>
+                <th>Type</th>
                 <th>Amount</th>
-                <th>Method</th>
                 <th>Status</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
-              <tr th:each="payment : ${payments}">
-                <td><a th:href="@{/admin/payments/{paymentId}(paymentId=${payment.id})}" th:text="${payment.id}">-</a>
+              <tr th:each="tx : ${transactions}">
+                <td><a th:href="@{/admin/payments/{transactionId}(transactionId=${tx.id})}" th:text="${tx.id}">-</a>
                 </td>
-                <td th:text="${payment.merchant}">-</td>
-                <td th:text="${payment.amount}">-</td>
-                <td th:text="${payment.method}">-</td>
-                <td><span class="status" th:classappend="${payment.statusClass}" th:text="${payment.status}">-</span>
+                <td th:text="${tx.type}">-</td>
+                <td th:text="${tx.amount}">-</td>
+                <td><span class="status" th:classappend="${tx.statusClass}" th:text="${tx.status}">-</span>
                 </td>
-                <td th:text="${payment.createdAt}">-</td>
+                <td th:text="${tx.createdAt}">-</td>
               </tr>
-              <tr th:if="${payments == null or #lists.isEmpty(payments)}">
-                <td colspan="6" class="empty">No payments available.</td>
+              <tr th:if="${transactions == null or #lists.isEmpty(transactions)}">
+                <td colspan="5" class="empty">No transactions available.</td>
               </tr>
             </tbody>
           </table>
@@ -93,8 +100,8 @@
             th:href="@{/admin/payments(page=${nextPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Next</a>
         </div>
 
-        <script>
-          (function () {
+          <script>
+            (function () {
             function pad2(n) { return String(n).padStart(2, '0'); }
             function formatUtcLocal(dt) {
               return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate()) + 'T' + pad2(dt.getUTCHours()) + ':' + pad2(dt.getUTCMinutes());
@@ -119,11 +126,22 @@
               form.submit();
             }
 
-            document.querySelectorAll('button[data-preset]').forEach(function (btn) {
-              btn.addEventListener('click', function () { applyPreset(btn.getAttribute('data-preset')); });
-            });
-          })();
-        </script>
+              document.querySelectorAll('button[data-preset]').forEach(function (btn) {
+                btn.addEventListener('click', function () { applyPreset(btn.getAttribute('data-preset')); });
+              });
+
+              var filterForm = document.getElementById('transactionsFilterForm');
+              if (!filterForm) return;
+              var hqSelect = filterForm.querySelector('select[name="headquartersId"]');
+              if (hqSelect) {
+                hqSelect.addEventListener('change', function () {
+                  var merchantSelect = filterForm.querySelector('select[name="merchantId"]');
+                  if (merchantSelect) merchantSelect.value = '';
+                  filterForm.submit();
+                });
+              }
+            })();
+          </script>
       </section>
     </main>
   </div>

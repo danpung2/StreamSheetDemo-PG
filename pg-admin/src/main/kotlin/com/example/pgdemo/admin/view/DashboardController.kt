@@ -173,17 +173,22 @@ class DashboardController(
             PaymentExportView::class.java
         )
         val latestSyncedAt = latestView?.syncedAt?.let { utcDisplayFormatter.format(it) } ?: "-"
+        val paymentViewSyncStatus = if (latestView != null) "COMPLETED" else "-"
 
         return mapOf(
             "exportJobStatus" to latestExportStatus,
             "exportJobQueuedAt" to latestExportQueuedAt,
             "exportJobFinishedAt" to latestExportFinishedAt,
-            "paymentViewSyncedAt" to latestSyncedAt
+            "paymentViewSyncedAt" to latestSyncedAt,
+            "paymentViewSyncStatus" to paymentViewSyncStatus
         )
     }
 
     private fun buildWarnings(tenantType: TenantType, tenantId: UUID?, now: Instant): List<Map<String, String>> {
         val warnings = mutableListOf<Map<String, String>>()
+
+        val drilldownFrom = now.minus(Duration.ofHours(24))
+        val drilldownTo = now
 
         val currentFrom = now.minus(Duration.ofHours(1))
         val currentTo = now
@@ -202,7 +207,7 @@ class DashboardController(
                     mapOf(
                         "title" to "Failure rate spike",
                         "detail" to "${formatPercent(current.failureRate)} (baseline ${formatPercent(baseline.failureRate)})",
-                        "link" to "/admin/payments?from=${utcInputFormatter.format(currentFrom)}&to=${utcInputFormatter.format(currentTo)}&status=${PaymentStatus.PAYMENT_FAILED.name}"
+                        "link" to "/admin/payments?from=${utcInputFormatter.format(drilldownFrom)}&to=${utcInputFormatter.format(drilldownTo)}&status=${PaymentStatus.PAYMENT_FAILED.name}"
                     )
                 )
             }
@@ -211,7 +216,7 @@ class DashboardController(
                     mapOf(
                         "title" to "Refund rate spike",
                         "detail" to "${formatPercent(current.refundRate)} (baseline ${formatPercent(baseline.refundRate)})",
-                        "link" to "/admin/payments?from=${utcInputFormatter.format(currentFrom)}&to=${utcInputFormatter.format(currentTo)}"
+                        "link" to "/admin/payments?from=${utcInputFormatter.format(drilldownFrom)}&to=${utcInputFormatter.format(drilldownTo)}&status=${RefundStatus.REFUND_COMPLETED.name}"
                     )
                 )
             }

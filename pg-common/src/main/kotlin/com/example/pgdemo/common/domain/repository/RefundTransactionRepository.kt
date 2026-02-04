@@ -73,6 +73,48 @@ interface RefundTransactionRepository : JpaRepository<RefundTransaction, UUID> {
         endDate: Instant, 
         pageable: Pageable
     ): Page<RefundTransaction>
+
+    fun findByRequestedAtBetweenAndStatus(
+        startDate: Instant,
+        endDate: Instant,
+        status: RefundStatus,
+        pageable: Pageable
+    ): Page<RefundTransaction>
+
+    @Query(
+        """
+        SELECT r FROM RefundTransaction r
+        JOIN r.payment p
+        WHERE p.merchant.id = :merchantId
+          AND r.requestedAt BETWEEN :startDate AND :endDate
+          AND (:status IS NULL OR r.status = :status)
+        """
+    )
+    fun findByMerchantIdAndRequestedAtBetweenAndStatus(
+        @Param("merchantId") merchantId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: RefundStatus?,
+        pageable: Pageable
+    ): Page<RefundTransaction>
+
+    @Query(
+        """
+        SELECT r FROM RefundTransaction r
+        JOIN r.payment p
+        JOIN p.merchant m
+        WHERE m.headquarters.id = :headquartersId
+          AND r.requestedAt BETWEEN :startDate AND :endDate
+          AND (:status IS NULL OR r.status = :status)
+        """
+    )
+    fun findByHeadquartersIdAndRequestedAtBetweenAndStatus(
+        @Param("headquartersId") headquartersId: UUID,
+        @Param("startDate") startDate: Instant,
+        @Param("endDate") endDate: Instant,
+        @Param("status") status: RefundStatus?,
+        pageable: Pageable
+    ): Page<RefundTransaction>
     
     /**
      * Find refunds by payment and status.

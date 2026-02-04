@@ -25,6 +25,7 @@ class PgMainApiClient(
                     .queryParam("page", page)
                     .queryParam("size", size)
                     .queryParam("sort", "requestedAt,desc")
+                    .queryParam("sort", "id,desc")
                     .apply {
                         fromUtc?.let { queryParam("from", it) }
                         toUtc?.let { queryParam("to", it) }
