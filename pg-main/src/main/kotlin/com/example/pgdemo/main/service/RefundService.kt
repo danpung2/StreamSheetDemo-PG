@@ -22,6 +22,14 @@ class RefundService(
         val payment = paymentTransactionRepository.findById(paymentId)
             .orElseThrow { ResourceNotFoundException("Payment not found") }
 
+        val existingRefunds = refundTransactionRepository.findByPaymentId(paymentId)
+        if (existingRefunds.any { it.status == RefundStatus.REFUND_PENDING || it.status == RefundStatus.REFUND_PROCESSING }) {
+            throw IllegalStateException("Refund is already pending/processing")
+        }
+        if (existingRefunds.any { it.status == RefundStatus.REFUND_COMPLETED }) {
+            throw IllegalStateException("Refund is already completed")
+        }
+
         val refundAmount = request.refundAmount ?: throw IllegalArgumentException("refundAmount is required")
         val now = Instant.now()
         val refund = RefundTransaction().apply {
