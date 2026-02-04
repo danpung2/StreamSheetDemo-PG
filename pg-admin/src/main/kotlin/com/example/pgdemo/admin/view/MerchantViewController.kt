@@ -37,7 +37,7 @@ class MerchantViewController(
     @GetMapping("/merchants")
     fun merchants(
         @RequestParam(name = "page", defaultValue = "0") page: Int,
-        @RequestParam(name = "size", defaultValue = "50") size: Int,
+        @RequestParam(name = "size", defaultValue = "20") size: Int,
         @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
         @RequestParam(name = "merchantQuery", required = false) merchantQuery: String?,
         @RequestParam(name = "status", required = false) status: String?,
@@ -48,8 +48,8 @@ class MerchantViewController(
         val tenantInfo = TenantContext.require()
         val safePage = page.coerceAtLeast(0)
         val safeSize = when (size) {
-            50, 100, 200 -> size
-            else -> 50
+            20, 50 -> size
+            else -> 20
         }
 
         val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let { runCatching { UUID.fromString(it) }.getOrNull() }
@@ -170,7 +170,7 @@ class MerchantViewController(
         model.addAttribute("headquartersOptions", headquartersOptions)
 
         model.addAttribute("statusOptions", listOf("ACTIVE", "INACTIVE", "SUSPENDED"))
-        model.addAttribute("sizeOptions", listOf(50, 100, 200))
+        model.addAttribute("sizeOptions", listOf(20, 50))
 
         return "merchants/list"
     }
