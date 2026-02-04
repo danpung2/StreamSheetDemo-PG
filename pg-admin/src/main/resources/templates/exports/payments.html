@@ -8,7 +8,7 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Payments exports</h2>
-            <form method="post" action="/admin/exports/payments/jobs" class="filters">
+            <form method="post" action="/admin/exports/payments/jobs" class="filters" id="paymentExportCreateForm">
               <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
               <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
 
@@ -26,7 +26,7 @@
             </form>
           </div>
 
-          <form class="filters" method="get" action="/admin/exports/payments">
+          <form class="filters" method="get" action="/admin/exports/payments" id="paymentExportListForm">
             <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
             <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
 
@@ -60,6 +60,7 @@
                 <tr>
                   <th>Job ID</th>
                   <th>Range</th>
+                  <th>HQ</th>
                   <th>Requested by</th>
                   <th>Status</th>
                   <th>Progress</th>
@@ -73,6 +74,7 @@
                 <tr th:each="exportJob : ${exportJobs}">
                   <td th:text="${exportJob.jobId}">-</td>
                   <td th:text="${exportJob.range}">-</td>
+                  <td th:text="${exportJob.headquarters}">-</td>
                   <td th:text="${exportJob.requestedBy}">-</td>
                   <td><span class="status" th:classappend="${exportJob.statusClass}" th:text="${exportJob.status}">-</span></td>
                   <td th:text="${exportJob.progress}">-</td>
@@ -88,7 +90,7 @@
                   </td>
                 </tr>
                 <tr th:if="${exportJobs == null or #lists.isEmpty(exportJobs)}">
-                  <td colspan="9" class="empty">No export jobs found.</td>
+                  <td colspan="10" class="empty">No export jobs found.</td>
                 </tr>
               </tbody>
             </table>
@@ -103,6 +105,59 @@
 
           <script th:if="${autoRefresh}">
             setTimeout(function () { window.location.reload(); }, 3000);
+          </script>
+
+          <script>
+            (function () {
+              var listForm = document.getElementById("paymentExportListForm");
+              if (!listForm) return;
+
+              function setSelectValue(form, name, value) {
+                var el = form.querySelector('select[name="' + name + '"]');
+                if (el) el.value = value;
+              }
+
+              function setInputValue(form, name, value) {
+                var el = form.querySelector('input[name="' + name + '"]');
+                if (el && typeof value === "string") el.value = value;
+              }
+
+              function getInputValue(form, name) {
+                var el = form.querySelector('input[name="' + name + '"]');
+                return el ? el.value : "";
+              }
+
+              function clearMerchant(form) {
+                var merchant = form.querySelector('select[name="merchantId"]');
+                if (merchant) merchant.value = "";
+              }
+
+              function onHeadquartersChange(e) {
+                var hqId = (e && e.target && e.target.value) ? e.target.value : "";
+
+                var sourceForm = (e && e.target && e.target.form) ? e.target.form : listForm;
+                var fromUtc = getInputValue(sourceForm, "fromUtc");
+                var toUtc = getInputValue(sourceForm, "toUtc");
+
+                var forms = [
+                  document.getElementById("paymentExportCreateForm"),
+                  document.getElementById("paymentExportListForm")
+                ];
+
+                forms.forEach(function (form) {
+                  if (!form) return;
+                  setInputValue(form, "fromUtc", fromUtc);
+                  setInputValue(form, "toUtc", toUtc);
+                  setSelectValue(form, "headquartersId", hqId);
+                  clearMerchant(form);
+                });
+
+                listForm.submit();
+              }
+
+              var hqSelects = document.querySelectorAll('select[name="headquartersId"]');
+              hqSelects.forEach(function (s) { s.addEventListener("change", onHeadquartersChange); });
+            })();
           </script>
         </section>
       </main>
