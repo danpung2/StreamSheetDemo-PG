@@ -5,11 +5,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import com.example.pgdemo.admin.security.RequestedByResolver
 
 @RestController
 @RequestMapping("/admin/exports")
@@ -40,7 +40,7 @@ class ExportController(
         response.contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         response.setHeader("Content-Disposition", "attachment; filename=\"$filename\"")
 
-        val requestedBy = SecurityContextHolder.getContext().authentication?.name ?: "-"
+        val requestedBy = RequestedByResolver.currentLabel()
         val range = "$parsedStartDate — $parsedEndDate"
         val queuedAt = Instant.now()
 

@@ -17,6 +17,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
@@ -326,7 +327,7 @@ class PaymentViewController(
         val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
 
         val jobPage = paymentExportJobService.listJobs(
-            pageable = PageRequest.of(safePage, safeSize),
+            pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "queuedAt")),
             fromUtc = resolvedFromUtc,
             toUtc = resolvedToUtc,
             headquartersId = parsedHeadquartersId,
@@ -335,12 +336,31 @@ class PaymentViewController(
         )
 
         val exportJobs = jobPage.content
+
+        val headquartersNameById = exportJobs.asSequence()
+            .mapNotNull { it.headquartersId }
+            .distinct()
+            .toList()
+            .let { ids ->
+                if (ids.isEmpty()) {
+                    emptyMap()
+                } else {
+                    headquartersRepository.findAllById(ids)
+                        .mapNotNull { hq ->
+                            val id = hq.id ?: return@mapNotNull null
+                            id to hq.name
+                        }
+                        .toMap()
+                }
+            }
+
         model.addAttribute(
             "exportJobs",
             exportJobs.map { job ->
                 mapOf(
                     "jobId" to job.jobId,
                     "range" to "${formatInstant(job.fromUtc)} — ${formatInstant(job.toUtc)}",
+                    "headquarters" to (job.headquartersId?.let { id -> headquartersNameById[id] ?: id.toString() } ?: "All HQ"),
                     "requestedBy" to job.requestedBy,
                     "status" to job.status.name,
                     "statusClass" to exportStatusClass(job.status),

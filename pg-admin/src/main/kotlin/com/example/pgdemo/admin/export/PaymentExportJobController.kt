@@ -12,7 +12,6 @@ import java.util.UUID
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
+import com.example.pgdemo.admin.security.RequestedByResolver
 
 @Controller
 @RequestMapping("/admin/exports/payments/jobs")
@@ -49,7 +49,7 @@ class PaymentExportJobController(
         val parsedToUtc = LocalDateTime.parse(toUtc).toInstant(ZoneOffset.UTC)
         val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
         val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
-        val requestedBy = SecurityContextHolder.getContext().authentication?.name ?: "-"
+        val requestedBy = RequestedByResolver.currentLabel()
         jobService.createJob(
             PaymentExportJobService.CreateRequest(
                 fromUtc = parsedFromUtc,
@@ -65,7 +65,7 @@ class PaymentExportJobController(
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseBody
     fun createJobApi(@RequestBody request: CreateJobRequest): CreateJobResponse {
-        val requestedBy = SecurityContextHolder.getContext().authentication?.name ?: "-"
+        val requestedBy = RequestedByResolver.currentLabel()
         val job = jobService.createJob(
             PaymentExportJobService.CreateRequest(
                 fromUtc = request.fromUtc,
