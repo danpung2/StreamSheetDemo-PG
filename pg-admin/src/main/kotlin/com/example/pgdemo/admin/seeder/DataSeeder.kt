@@ -79,10 +79,35 @@ class DataSeeder(
         // Sample company names
         // 샘플 회사명
         private val COMPANY_NAMES = listOf(
-            "스타벅스", "투썸플레이스", "이디야커피", "맥도날드", "버거킹", 
-            "롯데리아", "서브웨이", "파리바게뜨", "뚜레쥬르", "CU",
-            "GS25", "세븐일레븐", "이마트24", "올리브영", "다이소",
-            "무신사", "29CM", "쿠팡", "마켓컬리", "배달의민족"
+            // Coffee & Cafe
+            "스타벅스", "투썸플레이스", "이디야커피", "메가MGC커피", "컴포즈커피",
+            "빽다방", "폴바셋", "할리스", "엔제리너스", "파스쿠찌",
+            "커피빈", "탐앤탐스", "매머드커피", "더벤티", "공차",
+            "카페베네", "드롭탑", "블루보틀", "설빙", "쥬씨",
+            // Fast Food & Burger
+            "맥도날드", "버거킹", "롯데리아", "KFC", "맘스터치",
+            "노브랜드버거", "쉐이크쉑", "프랭크버거", "모스버거", "타코벨",
+            "이삭토스트", "에그드랍", "서브웨이", "퀴즈노스", "봉구스밥버거",
+            // Bakery & Dessert
+            "파리바게뜨", "뚜레쥬르", "던킨", "크리스피크림도넛", "배스킨라빈스",
+            "성심당", "이성당", "삼송빵집", "태극당", "옵스",
+            // Chicken & Pizza
+            "BBQ", "BHC", "교촌치킨", "굽네치킨", "네네치킨",
+            "처갓집양념치킨", "페리카나", "멕시카나", "60계치킨", "노랑통닭",
+            "도미노피자", "피자헛", "파파존스", "미스터피자", "피자알볼로",
+            "피자스쿨", "청년피자", "반올림피자", "피자마루", "59쌀피자",
+            // Retail & CVS
+            "CU", "GS25", "세븐일레븐", "이마트24", "미니스톱",
+            "올리브영", "다이소", "롯데마트", "이마트", "홈플러스",
+            "코스트코", "하나로마트", "하이마트", "전자랜드", "ABC마트",
+            // Tech & Platform
+            "쿠팡", "네이버", "카카오", "배달의민족", "요기요",
+            "마켓컬리", "무신사", "29CM", "에이블리", "지그재그",
+            "토스", "당근마켓", "야놀자", "여기어때", "쏘카",
+            // Fashion & Others
+            "나이키", "아디다스", "유니클로", "자라", "H&M",
+            "스파오", "탑텐", "에잇세컨즈", "CGV", "롯데시네마",
+            "메가박스", "교보문고", "영풍문고", "알라딘", "예스24"
         )
         
         private val LAST_NAMES = listOf("김", "이", "박", "최", "정", "강", "조", "윤", "장", "임")
@@ -157,7 +182,7 @@ class DataSeeder(
         repeat(HEADQUARTERS_COUNT) { index ->
             val hq = Headquarters().apply {
                 headquartersCode = "HQ${String.format("%05d", index + 1)}"
-                name = "${COMPANY_NAMES[index % COMPANY_NAMES.size]} 본사 ${(index / COMPANY_NAMES.size) + 1}"
+                name = COMPANY_NAMES[index % COMPANY_NAMES.size]
                 businessNumber = "${100 + (index / 100)}-${10 + ((index / 10) % 10)}-${10000 + index}"
                 contractType = if (Random.nextBoolean()) "PREMIUM" else "STANDARD"
                 status = if (Random.nextInt(100) < 95) "ACTIVE" else "INACTIVE"
@@ -201,7 +226,7 @@ class DataSeeder(
             val merchant = Merchant().apply {
                 merchantCode = "M${String.format("%08d", index + 1)}"
                 this.headquarters = hq
-                name = "${hq.name.replace(" 본사", "")} ${generateBranchName(index)}"
+                name = "${hq.name} ${generateBranchName(index)}"
                 storeNumber = index + 1
                 storeType = storeTypes[Random.nextInt(storeTypes.size)]
                 businessType = businessTypes[Random.nextInt(businessTypes.size)]
