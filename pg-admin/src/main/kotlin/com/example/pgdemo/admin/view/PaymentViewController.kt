@@ -165,7 +165,8 @@ class PaymentViewController(
         model.addAttribute("status", trimmedStatus ?: "")
         model.addAttribute(
             "statusOptions",
-            PaymentStatus.values().map { it.name } + RefundStatus.values().map { it.name }
+            PaymentStatus.values().map { s -> mapOf("value" to s.name, "label" to formatPaymentStatus(s)) } +
+                RefundStatus.values().map { s -> mapOf("value" to s.name, "label" to formatRefundStatus(s)) }
         )
 
         val headquartersOptions = when (tenantInfo.tenantType) {

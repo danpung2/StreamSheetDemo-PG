@@ -25,7 +25,7 @@
 
               <select name="status">
                 <option value="" th:selected="${status == ''}">All Status</option>
-                <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-</option>
+                <option th:each="s : ${statusOptions}" th:value="${s.value}" th:text="${s.label}" th:selected="${s.value == status}">-</option>
               </select>
 
               <select name="size">
