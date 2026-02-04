@@ -15,7 +15,7 @@ import java.text.NumberFormat
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.data.domain.PageRequest
@@ -37,6 +37,8 @@ class PaymentViewController(
     private val merchantRepository: MerchantRepository,
     private val refundTransactionRepository: RefundTransactionRepository
 ) {
+
+    private val displayZone = ZoneId.systemDefault()
 
     @GetMapping("/payments")
     fun payments(
@@ -62,9 +64,9 @@ class PaymentViewController(
         var resolvedToUtc = now
         try {
             val parsedFromUtc = fromUtc
-                ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+                ?.let { LocalDateTime.parse(it).atZone(displayZone).toInstant() }
             val parsedToUtc = toUtc
-                ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+                ?.let { LocalDateTime.parse(it).atZone(displayZone).toInstant() }
             resolvedToUtc = parsedToUtc ?: now
             resolvedFromUtc = parsedFromUtc ?: now.minus(Duration.ofHours(24))
         } catch (ex: Exception) {
@@ -143,7 +145,7 @@ class PaymentViewController(
         }
 
         val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
-            .withZone(ZoneOffset.UTC)
+            .withZone(displayZone)
         model.addAttribute("fromUtcLocal", inputFormatter.format(resolvedFromUtc))
         model.addAttribute("toUtcLocal", inputFormatter.format(resolvedToUtc))
         model.addAttribute("headquartersId", resolvedHeadquartersId?.toString() ?: "")
@@ -452,15 +454,15 @@ class PaymentViewController(
         val now = Instant.now()
 
         val parsedFromUtc = fromUtc
-            ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+            ?.let { LocalDateTime.parse(it).atZone(displayZone).toInstant() }
         val parsedToUtc = toUtc
-            ?.let { LocalDateTime.parse(it).toInstant(ZoneOffset.UTC) }
+            ?.let { LocalDateTime.parse(it).atZone(displayZone).toInstant() }
 
         val resolvedToUtc = parsedToUtc ?: now
         val resolvedFromUtc = parsedFromUtc ?: now.minus(Duration.ofHours(24))
 
         val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
-            .withZone(ZoneOffset.UTC)
+            .withZone(displayZone)
         model.addAttribute("fromUtcLocal", inputFormatter.format(resolvedFromUtc))
         model.addAttribute("toUtcLocal", inputFormatter.format(resolvedToUtc))
 
@@ -593,8 +595,8 @@ class PaymentViewController(
 
     private fun buildPaymentEvents(payment: PaymentResponse): List<Map<String, String>> {
 
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
-            .withZone(ZoneOffset.UTC)
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
+            .withZone(displayZone)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
         val events = mutableListOf<Pair<Instant, Map<String, String>>>()
@@ -646,8 +648,8 @@ class PaymentViewController(
     }
 
     private fun buildRefundEvents(refund: com.example.pgdemo.common.domain.entity.RefundTransaction, paymentId: String): List<Map<String, String>> {
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
-            .withZone(ZoneOffset.UTC)
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
+            .withZone(displayZone)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
         val events = mutableListOf<Pair<Instant, Map<String, String>>>()
@@ -701,8 +703,8 @@ class PaymentViewController(
         refund: com.example.pgdemo.common.domain.entity.RefundTransaction,
         paymentId: String
     ): List<Map<String, String>> {
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")
-            .withZone(ZoneOffset.UTC)
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
+            .withZone(displayZone)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
         val events = mutableListOf<Pair<Instant, Map<String, String>>>()
@@ -805,8 +807,8 @@ class PaymentViewController(
         if (instant == null) {
             return "-"
         }
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
-            .withZone(ZoneOffset.UTC)
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+            .withZone(displayZone)
         return formatter.format(instant)
     }
 

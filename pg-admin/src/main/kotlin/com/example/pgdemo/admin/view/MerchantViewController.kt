@@ -11,7 +11,7 @@ import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
 import com.example.pgdemo.common.domain.repository.spec.MerchantSpecifications
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.data.domain.PageRequest
@@ -30,8 +30,9 @@ class MerchantViewController(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val refundTransactionRepository: RefundTransactionRepository
 ) {
-    private val utcFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
-        .withZone(ZoneOffset.UTC)
+    private val displayZone = ZoneId.systemDefault()
+    private val displayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+        .withZone(displayZone)
 
     @GetMapping("/merchants")
     fun merchants(
@@ -137,7 +138,7 @@ class MerchantViewController(
                     "storeType" to formatLabel(merchant.storeType.name),
                     "status" to merchant.status,
                     "riskTier" to riskTier,
-                    "updatedAt" to utcFormatter.format(merchant.updatedAt)
+                    "updatedAt" to displayFormatter.format(merchant.updatedAt)
                 )
             }
         )

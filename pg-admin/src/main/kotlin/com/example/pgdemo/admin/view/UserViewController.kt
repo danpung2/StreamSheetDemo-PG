@@ -49,7 +49,8 @@ class UserViewController(
         if (instant == null) {
             return "-"
         }
-        val formatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+            .withZone(ZoneId.systemDefault())
         return formatter.format(instant)
     }
 

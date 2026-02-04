@@ -6,7 +6,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.data.domain.Page
@@ -27,6 +27,8 @@ import com.example.pgdemo.admin.security.RequestedByResolver
 class PaymentExportJobController(
     private val jobService: PaymentExportJobService
 ) {
+
+    private val displayZone = ZoneId.systemDefault()
     data class CreateJobRequest(
         val fromUtc: Instant,
         val toUtc: Instant,
@@ -47,8 +49,8 @@ class PaymentExportJobController(
         @RequestParam("merchantId", required = false) merchantId: String?,
         @RequestParam("transactionStatus", required = false) transactionStatus: String?
     ): String {
-        val parsedFromUtc = LocalDateTime.parse(fromUtc).toInstant(ZoneOffset.UTC)
-        val parsedToUtc = LocalDateTime.parse(toUtc).toInstant(ZoneOffset.UTC)
+        val parsedFromUtc = LocalDateTime.parse(fromUtc).atZone(displayZone).toInstant()
+        val parsedToUtc = LocalDateTime.parse(toUtc).atZone(displayZone).toInstant()
         val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
         val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
         val requestedBy = RequestedByResolver.currentLabel()
@@ -118,7 +120,7 @@ class PaymentExportJobController(
         require(Files.exists(filePath)) { "Export file not found" }
 
         val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
-            .withZone(java.time.ZoneOffset.UTC)
+            .withZone(displayZone)
         val filename = "transactions_export_${formatter.format(job.fromUtc)}_${formatter.format(job.toUtc)}.xlsx"
         response.contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         response.setHeader("Content-Disposition", "attachment; filename=\"$filename\"")

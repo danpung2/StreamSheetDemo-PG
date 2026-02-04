@@ -14,7 +14,7 @@ import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
 import java.text.NumberFormat
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import org.springframework.data.domain.PageRequest
@@ -35,11 +35,13 @@ class DashboardController(
     private val exportJobRepository: ExportJobRepository,
     private val mongoTemplate: MongoTemplate
 ) {
-    private val utcInputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
-        .withZone(ZoneOffset.UTC)
+    private val displayZone = ZoneId.systemDefault()
 
-    private val utcDisplayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
-        .withZone(ZoneOffset.UTC)
+    private val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+        .withZone(displayZone)
+
+    private val displayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+        .withZone(displayZone)
 
     @GetMapping("", "/dashboard")
     fun dashboard(model: Model): String {
@@ -61,7 +63,7 @@ class DashboardController(
                 "delayP95" to formatDurationMs(kpi.delayP95Ms)
             )
         )
-        model.addAttribute("dashboardUpdatedAt", utcDisplayFormatter.format(now))
+        model.addAttribute("dashboardUpdatedAt", displayFormatter.format(now))
 
         val topMerchants = loadTopMerchants(tenantInfo.tenantType, tenantInfo.tenantId, fromUtc, toUtc)
         model.addAttribute("topMerchants", topMerchants)
@@ -72,8 +74,8 @@ class DashboardController(
         val warnings = buildWarnings(tenantInfo.tenantType, tenantInfo.tenantId, now)
         model.addAttribute("warnings", warnings)
 
-        val paymentsLinkFrom = utcInputFormatter.format(fromUtc)
-        val paymentsLinkTo = utcInputFormatter.format(toUtc)
+        val paymentsLinkFrom = inputFormatter.format(fromUtc)
+        val paymentsLinkTo = inputFormatter.format(toUtc)
         model.addAttribute("paymentsLinkFrom", paymentsLinkFrom)
         model.addAttribute("paymentsLinkTo", paymentsLinkTo)
 
@@ -165,14 +167,14 @@ class DashboardController(
         ).content.firstOrNull()
 
         val latestExportStatus = latestExport?.status?.name ?: "-"
-        val latestExportQueuedAt = latestExport?.queuedAt?.let { utcDisplayFormatter.format(it) } ?: "-"
-        val latestExportFinishedAt = latestExport?.finishedAt?.let { utcDisplayFormatter.format(it) } ?: "-"
+        val latestExportQueuedAt = latestExport?.queuedAt?.let { displayFormatter.format(it) } ?: "-"
+        val latestExportFinishedAt = latestExport?.finishedAt?.let { displayFormatter.format(it) } ?: "-"
 
         val latestView = mongoTemplate.findOne(
             Query().with(Sort.by(Sort.Direction.DESC, "syncedAt")).limit(1),
             PaymentExportView::class.java
         )
-        val latestSyncedAt = latestView?.syncedAt?.let { utcDisplayFormatter.format(it) } ?: "-"
+        val latestSyncedAt = latestView?.syncedAt?.let { displayFormatter.format(it) } ?: "-"
         val paymentViewSyncStatus = if (latestView != null) "COMPLETED" else "-"
 
         return mapOf(
@@ -207,7 +209,7 @@ class DashboardController(
                     mapOf(
                         "title" to "Failure rate spike",
                         "detail" to "${formatPercent(current.failureRate)} (baseline ${formatPercent(baseline.failureRate)})",
-                        "link" to "/admin/payments?from=${utcInputFormatter.format(drilldownFrom)}&to=${utcInputFormatter.format(drilldownTo)}&status=${PaymentStatus.PAYMENT_FAILED.name}"
+                        "link" to "/admin/payments?from=${inputFormatter.format(drilldownFrom)}&to=${inputFormatter.format(drilldownTo)}&status=${PaymentStatus.PAYMENT_FAILED.name}"
                     )
                 )
             }
@@ -216,7 +218,7 @@ class DashboardController(
                     mapOf(
                         "title" to "Refund rate spike",
                         "detail" to "${formatPercent(current.refundRate)} (baseline ${formatPercent(baseline.refundRate)})",
-                        "link" to "/admin/payments?from=${utcInputFormatter.format(drilldownFrom)}&to=${utcInputFormatter.format(drilldownTo)}&status=${RefundStatus.REFUND_COMPLETED.name}"
+                        "link" to "/admin/payments?from=${inputFormatter.format(drilldownFrom)}&to=${inputFormatter.format(drilldownTo)}&status=${RefundStatus.REFUND_COMPLETED.name}"
                     )
                 )
             }
@@ -245,7 +247,7 @@ class DashboardController(
             warnings.add(
                 mapOf(
                     "title" to "Payment view sync is stale",
-                    "detail" to "Last synced ${utcDisplayFormatter.format(syncedAt)}",
+                    "detail" to "Last synced ${displayFormatter.format(syncedAt)}",
                     "link" to "/admin/exports/payments"
                 )
             )

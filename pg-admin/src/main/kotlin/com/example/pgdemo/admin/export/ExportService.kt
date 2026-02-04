@@ -13,7 +13,7 @@ import com.streamsheet.core.schema.AnnotationExcelSchema
 import java.io.OutputStream
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.sequences.sequence
@@ -28,8 +28,9 @@ class ExportService(
     private val mongoTemplate: MongoTemplate,
     private val tenantPermissionMatrix: TenantPermissionMatrix
 ) {
-    private val utcDisplayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
-        .withZone(ZoneOffset.UTC)
+    private val displayZone = ZoneId.systemDefault()
+    private val displayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+        .withZone(displayZone)
 
     fun exportPayments(
         startDate: LocalDate,
@@ -38,8 +39,8 @@ class ExportService(
         headquartersId: UUID?,
         merchantId: UUID?
     ) {
-        val fromUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant()
-        val toUtcExclusive = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()
+        val fromUtc = startDate.atStartOfDay(displayZone).toInstant()
+        val toUtcExclusive = endDate.plusDays(1).atStartOfDay(displayZone).toInstant()
         exportPayments(
             fromUtc = fromUtc,
             toUtcExclusive = toUtcExclusive,
@@ -136,7 +137,7 @@ class ExportService(
                                 amount = view.amount,
                                 method = view.paymentMethod,
                                 status = status,
-                                transactionDate = utcDisplayFormatter.format(view.paymentDate),
+                                transactionDate = displayFormatter.format(view.paymentDate),
                                 paymentId = null
                             )
                         )
@@ -160,7 +161,7 @@ class ExportService(
                                 amount = view.refundAmount ?: 0L,
                                 method = view.paymentMethod,
                                 status = refundStatus ?: "-",
-                                transactionDate = utcDisplayFormatter.format(refundDate),
+                                transactionDate = displayFormatter.format(refundDate),
                                 paymentId = view.transactionId.toString()
                             )
                         )
