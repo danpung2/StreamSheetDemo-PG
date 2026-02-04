@@ -40,7 +40,6 @@ open class RefundTransaction {
     @Column(name = "status", nullable = false, length = 30)
     lateinit var status: RefundStatus
 
-    @CreationTimestamp
     @Column(name = "requested_at", nullable = false, updatable = false)
     lateinit var requestedAt: Instant
 
