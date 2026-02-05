@@ -621,25 +621,18 @@ class PaymentViewController(
 
     private fun buildPaymentEvents(payment: PaymentResponse): List<Map<String, String>> {
 
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS z")
             .withZone(displayZone)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
-        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
+        val events = mutableListOf<Map<String, String>>()
 
-        events.add(
-            payment.requestedAt to mapOf(
-                "time" to fmtTime(payment.requestedAt),
-                "title" to "Payment Requested",
-                "note" to payment.orderId
-            )
-        )
-
-        payment.processedAt?.let {
+        payment.completedAt?.let {
+            val completedTitle = if (payment.status == PaymentStatus.PAYMENT_CANCELLED) "Cancelled" else "Completed"
             events.add(
-                it to mapOf(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Payment Processed",
+                    "title" to "Payment $completedTitle",
                     "note" to "-"
                 )
             )
@@ -651,7 +644,7 @@ class PaymentViewController(
                 ?: payment.completedAt
                 ?: payment.requestedAt
             events.add(
-                failTime to mapOf(
+                mapOf(
                     "time" to fmtTime(failTime),
                     "title" to "Payment Failed",
                     "note" to (payment.failureReason ?: "-")
@@ -659,40 +652,39 @@ class PaymentViewController(
             )
         }
 
-        payment.completedAt?.let {
-            val completedTitle = if (payment.status == PaymentStatus.PAYMENT_CANCELLED) "Cancelled" else "Completed"
+        payment.processedAt?.let {
             events.add(
-                it to mapOf(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Payment $completedTitle",
+                    "title" to "Payment Processed",
                     "note" to "-"
                 )
             )
         }
 
-        return events.sortedByDescending { it.first }.map { it.second }
-    }
-
-    private fun buildRefundEvents(refund: com.example.pgdemo.common.domain.entity.RefundTransaction, paymentId: String): List<Map<String, String>> {
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
-            .withZone(displayZone)
-        fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
-
-        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
-
         events.add(
-            refund.requestedAt to mapOf(
-                "time" to fmtTime(refund.requestedAt),
-                "title" to "Refund Requested",
-                "note" to paymentId
+            mapOf(
+                "time" to fmtTime(payment.requestedAt),
+                "title" to "Payment Requested",
+                "note" to "-"
             )
         )
 
-        refund.processedAt?.let {
+        return events
+    }
+
+    private fun buildRefundEvents(refund: com.example.pgdemo.common.domain.entity.RefundTransaction, paymentId: String): List<Map<String, String>> {
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS z")
+            .withZone(displayZone)
+        fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
+
+        val events = mutableListOf<Map<String, String>>()
+
+        refund.completedAt?.let {
             events.add(
-                it to mapOf(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Refund Processed",
+                    "title" to "Refund Completed",
                     "note" to paymentId
                 )
             )
@@ -703,7 +695,7 @@ class PaymentViewController(
             val failTime = failBase.plusMillis(1)
             val reason = refund.failureReason ?: "-"
             events.add(
-                failTime to mapOf(
+                mapOf(
                     "time" to fmtTime(failTime),
                     "title" to "Refund Failed",
                     "note" to "$reason | $paymentId"
@@ -711,17 +703,25 @@ class PaymentViewController(
             )
         }
 
-        refund.completedAt?.let {
+        refund.processedAt?.let {
             events.add(
-                it to mapOf(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Refund Completed",
+                    "title" to "Refund Processed",
                     "note" to paymentId
                 )
             )
         }
 
-        return events.sortedByDescending { it.first }.map { it.second }
+        events.add(
+            mapOf(
+                "time" to fmtTime(refund.requestedAt),
+                "title" to "Refund Requested",
+                "note" to paymentId
+            )
+        )
+
+        return events
     }
 
     private fun buildCombinedEvents(
@@ -729,70 +729,23 @@ class PaymentViewController(
         refund: com.example.pgdemo.common.domain.entity.RefundTransaction,
         paymentId: String
     ): List<Map<String, String>> {
-        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss z")
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS z")
             .withZone(displayZone)
         fun fmtTime(instant: Instant): String = timeFormatter.format(instant)
 
-        val events = mutableListOf<Pair<Instant, Map<String, String>>>()
-
-        if (payment != null) {
-            events.add(
-                payment.requestedAt to mapOf(
-                    "time" to fmtTime(payment.requestedAt),
-                    "title" to "Payment Requested",
-                    "note" to "order id: ${payment.orderId}"
-                )
-            )
-
-            payment.processedAt?.let {
-                events.add(
-                    it to mapOf(
-                        "time" to fmtTime(it),
-                        "title" to "Payment Processed",
-                        "note" to "-"
-                    )
-                )
-            }
-
-            if (payment.status == PaymentStatus.PAYMENT_FAILED) {
-                val failTime = payment.processedAt
-                    ?.plusMillis(1)
-                    ?: payment.completedAt
-                    ?: payment.requestedAt
-                events.add(
-                    failTime to mapOf(
-                        "time" to fmtTime(failTime),
-                        "title" to "Payment Failed",
-                        "note" to (payment.failureReason ?: "-")
-                    )
-                )
-            }
-
-            payment.completedAt?.let {
-                val completedTitle = if (payment.status == PaymentStatus.PAYMENT_CANCELLED) "Cancelled" else "Completed"
-                events.add(
-                    it to mapOf(
-                        "time" to fmtTime(it),
-                        "title" to "Payment $completedTitle",
-                        "note" to "-"
-                    )
-                )
-            }
+        val paymentEvents = if (payment == null) {
+            emptyList()
+        } else {
+            buildPaymentEvents(payment)
         }
 
-        events.add(
-            refund.requestedAt to mapOf(
-                "time" to fmtTime(refund.requestedAt),
-                "title" to "Refund Requested",
-                "note" to "payment id: $paymentId"
-            )
-        )
+        val refundEvents = mutableListOf<Map<String, String>>()
 
-        refund.processedAt?.let {
-            events.add(
-                it to mapOf(
+        refund.completedAt?.let {
+            refundEvents.add(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Refund Processed",
+                    "title" to "Refund Completed",
                     "note" to "-"
                 )
             )
@@ -802,8 +755,8 @@ class PaymentViewController(
             val failBase = refund.processedAt ?: refund.completedAt ?: refund.requestedAt
             val failTime = failBase.plusMillis(1)
             val reason = refund.failureReason ?: "-"
-            events.add(
-                failTime to mapOf(
+            refundEvents.add(
+                mapOf(
                     "time" to fmtTime(failTime),
                     "title" to "Refund Failed",
                     "note" to "reason: $reason | -"
@@ -811,17 +764,29 @@ class PaymentViewController(
             )
         }
 
-        refund.completedAt?.let {
-            events.add(
-                it to mapOf(
+        refund.processedAt?.let {
+            refundEvents.add(
+                mapOf(
                     "time" to fmtTime(it),
-                    "title" to "Refund Completed",
+                    "title" to "Refund Processed",
                     "note" to "-"
                 )
             )
         }
 
-        return events.sortedByDescending { it.first }.map { it.second }
+        refundEvents.add(
+            mapOf(
+                "time" to fmtTime(refund.requestedAt),
+                "title" to "Refund Requested",
+                "note" to "payment id: $paymentId"
+            )
+        )
+
+        return if (refund.status == RefundStatus.REFUND_COMPLETED) {
+            refundEvents + paymentEvents
+        } else {
+            refundEvents + paymentEvents
+        }
     }
 
     private fun formatAmount(amount: Long): String {
