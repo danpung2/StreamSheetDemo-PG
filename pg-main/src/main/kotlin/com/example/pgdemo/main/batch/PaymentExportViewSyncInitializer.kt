@@ -6,9 +6,9 @@ import org.springframework.stereotype.Component
 
 @Component
 class PaymentExportViewSyncInitializer(
-    private val syncStateStore: PaymentExportViewSyncStateStore
+    private val syncRunner: PaymentExportViewSyncRunner
 ) : ApplicationRunner {
     override fun run(args: ApplicationArguments) {
-        syncStateStore.migrateIfNeeded()
+        syncRunner.runOnStartup()
     }
 }
