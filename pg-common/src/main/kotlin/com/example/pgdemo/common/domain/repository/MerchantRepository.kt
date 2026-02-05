@@ -40,6 +40,8 @@ interface MerchantRepository : JpaRepository<Merchant, UUID>, JpaSpecificationEx
      * @return true if exists, false otherwise / 존재하면 true, 아니면 false
      */
     fun existsByMerchantCode(merchantCode: String): Boolean
+
+    fun existsByHeadquartersIdAndNameIgnoreCase(headquartersId: UUID, name: String): Boolean
     
     /**
      * Find all merchants belonging to a headquarters.

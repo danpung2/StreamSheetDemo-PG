@@ -2,8 +2,11 @@ package com.example.pgdemo.main
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.example.pgdemo.common.domain.repository.MerchantRepository
+import com.example.pgdemo.common.domain.repository.HeadquartersRepository
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
+import com.example.pgdemo.main.dto.HeadquartersRequest
+import com.example.pgdemo.main.dto.HeadquartersResponse
 import com.example.pgdemo.main.dto.MerchantRequest
 import com.example.pgdemo.main.dto.MerchantResponse
 import com.example.pgdemo.main.dto.PaymentRequest
@@ -62,6 +65,9 @@ class IntegrationFlowTest {
     private lateinit var merchantRepository: MerchantRepository
 
     @Autowired
+    private lateinit var headquartersRepository: HeadquartersRepository
+
+    @Autowired
     private lateinit var paymentTransactionRepository: PaymentTransactionRepository
 
     @Autowired
@@ -70,6 +76,7 @@ class IntegrationFlowTest {
     private val createdMerchantIds = mutableListOf<UUID>()
     private val createdPaymentIds = mutableListOf<UUID>()
     private val createdRefundIds = mutableListOf<UUID>()
+    private val createdHeadquartersIds = mutableListOf<UUID>()
 
     @BeforeAll
     @DisplayName("데이터베이스 연결 확인")
@@ -100,14 +107,32 @@ class IntegrationFlowTest {
             merchantRepository.deleteAllById(createdMerchantIds.toList())
             createdMerchantIds.clear()
         }
+
+        if (createdHeadquartersIds.isNotEmpty()) {
+            headquartersRepository.deleteAllById(createdHeadquartersIds.toList())
+            createdHeadquartersIds.clear()
+        }
     }
 
     @Test
     @DisplayName("가맹점 생성, 결제, 환불 플로우 테스트")
     fun `merchant payment refund flow`() {
+        val hqRequest = HeadquartersRequest(
+            headquartersCode = "HQ-${System.nanoTime()}",
+            name = "Integration Test HQ ${System.nanoTime()}",
+            businessNumber = "000-00-00000",
+            contractType = "STANDARD",
+            status = "ACTIVE"
+        )
+        val hqResponse = postJson(path = "/api/v1/headquarters", request = hqRequest)
+        assertThat(hqResponse.statusCode).isEqualTo(HttpStatus.CREATED)
+        val hq = requireNotNull(parseJson(hqResponse.body, HeadquartersResponse::class.java))
+        createdHeadquartersIds.add(hq.id)
+
         val merchantRequest = MerchantRequest(
             merchantCode = "M-${System.nanoTime()}",
             name = "Integration Test Merchant",
+            headquartersId = hq.id,
             storeType = StoreType.DIRECT,
             businessType = BusinessType.RETAIL,
             contractStartDate = LocalDate.now(),

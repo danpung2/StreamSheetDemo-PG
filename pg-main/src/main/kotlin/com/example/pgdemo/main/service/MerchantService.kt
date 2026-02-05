@@ -28,6 +28,10 @@ class MerchantService(
         val headquarters = headquartersRepository.findById(headquartersId)
             .orElseThrow { ResourceNotFoundException("Headquarters not found") }
 
+        if (merchantRepository.existsByHeadquartersIdAndNameIgnoreCase(headquartersId, request.name)) {
+            throw IllegalArgumentException("merchant name already exists under headquarters")
+        }
+
         val merchant = Merchant().apply {
             merchantCode = request.merchantCode
             this.headquarters = headquarters
