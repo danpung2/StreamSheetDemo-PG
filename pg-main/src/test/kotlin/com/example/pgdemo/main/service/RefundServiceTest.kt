@@ -2,6 +2,7 @@ package com.example.pgdemo.main.service
 
 import com.example.pgdemo.common.domain.entity.PaymentTransaction
 import com.example.pgdemo.common.domain.entity.RefundTransaction
+import com.example.pgdemo.common.domain.enum.PaymentStatus
 import com.example.pgdemo.common.domain.enum.RefundStatus
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
@@ -11,7 +12,6 @@ import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -29,6 +29,7 @@ class RefundServiceTest {
         val paymentId = UUID.randomUUID()
         val payment = PaymentTransaction().apply {
             id = paymentId
+            status = PaymentStatus.PAYMENT_COMPLETED
         }
         Mockito.`when`(paymentRepository.findById(paymentId))
             .thenReturn(Optional.of(payment))
@@ -52,10 +53,31 @@ class RefundServiceTest {
         assertEquals(paymentId, response.paymentId)
         assertEquals(500L, response.refundAmount)
         assertEquals("CUSTOMER", response.refundReason)
-        assertEquals(RefundStatus.REFUND_COMPLETED, response.status)
+        assertEquals(RefundStatus.REFUND_PENDING, response.status)
         assertEquals(requestedAt, response.requestedAt)
-        assertNotNull(response.processedAt)
-        assertNotNull(response.completedAt)
+        assertEquals(null, response.processedAt)
+        assertEquals(null, response.completedAt)
+    }
+
+    @Test
+    @DisplayName("결제가 완료되지 않은 상태에서는 환불 요청이 거절된다")
+    fun `requestRefund throws when payment not completed`() {
+        val refundRepository = Mockito.mock(RefundTransactionRepository::class.java)
+        val paymentRepository = Mockito.mock(PaymentTransactionRepository::class.java)
+        val service = RefundService(refundRepository, paymentRepository)
+
+        val paymentId = UUID.randomUUID()
+        val payment = PaymentTransaction().apply {
+            id = paymentId
+            status = PaymentStatus.PAYMENT_PENDING
+        }
+        Mockito.`when`(paymentRepository.findById(paymentId))
+            .thenReturn(Optional.of(payment))
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            service.requestRefund(paymentId, RefundRequest(refundAmount = 500L, refundReason = "CUSTOMER"))
+        }
+        assertEquals("Payment must be completed to request refund", exception.message)
     }
 
     @Test
@@ -84,7 +106,10 @@ class RefundServiceTest {
         val service = RefundService(refundRepository, paymentRepository)
 
         val paymentId = UUID.randomUUID()
-        val payment = PaymentTransaction().apply { id = paymentId }
+        val payment = PaymentTransaction().apply {
+            id = paymentId
+            status = PaymentStatus.PAYMENT_COMPLETED
+        }
         Mockito.`when`(paymentRepository.findById(paymentId))
             .thenReturn(Optional.of(payment))
 

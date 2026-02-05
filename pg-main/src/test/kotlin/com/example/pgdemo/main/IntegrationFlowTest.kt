@@ -39,6 +39,8 @@ import org.springframework.http.ResponseEntity
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "spring.main.allow-bean-definition-overriding=true",
+        "spring.quartz.auto-startup=false",
+        "pgdemo.payment-view-sync.startup-enabled=false",
         "spring.datasource.url=jdbc:postgresql://localhost:5432/pgdemo",
         "spring.datasource.username=pgdemo",
         "spring.datasource.password=pgdemo",
@@ -156,6 +158,37 @@ class IntegrationFlowTest {
         assertThat(paymentResponse.statusCode).isEqualTo(HttpStatus.CREATED)
         val payment = requireNotNull(parseJson(paymentResponse.body, PaymentResponse::class.java))
         createdPaymentIds.add(payment.id)
+
+        val prematureCompleteResponse = postJson(
+            path = "/api/v1/payments/${payment.id}/complete",
+            request = emptyMap<String, String>()
+        )
+        assertThat(prematureCompleteResponse.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+
+        val prematureRefundResponse = postJson(
+            path = "/api/v1/payments/${payment.id}/refund",
+            request = RefundRequest(
+                refundAmount = 5000,
+                refundReason = "Integration test refund"
+            )
+        )
+        assertThat(prematureRefundResponse.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+
+        val processResponse = postJson(path = "/api/v1/payments/${payment.id}/process", request = emptyMap<String, String>())
+        assertThat(processResponse.statusCode).isEqualTo(HttpStatus.OK)
+        val processedPayment = requireNotNull(parseJson(processResponse.body, PaymentResponse::class.java))
+        assertThat(processedPayment.id).isEqualTo(payment.id)
+        assertThat(processedPayment.requestedAt).isEqualTo(payment.requestedAt)
+        assertThat(processedPayment.processedAt).isNotNull
+
+        val completeResponse = postJson(path = "/api/v1/payments/${payment.id}/complete", request = emptyMap<String, String>())
+        assertThat(completeResponse.statusCode).isEqualTo(HttpStatus.OK)
+        val completedPayment = requireNotNull(parseJson(completeResponse.body, PaymentResponse::class.java))
+        assertThat(completedPayment.id).isEqualTo(payment.id)
+        assertThat(completedPayment.requestedAt).isEqualTo(payment.requestedAt)
+        assertThat(completedPayment.processedAt).isNotNull
+        assertThat(completedPayment.completedAt).isNotNull
+        assertThat(completedPayment.completedAt).isAfterOrEqualTo(completedPayment.processedAt)
 
         val refundRequest = RefundRequest(
             refundAmount = 5000,

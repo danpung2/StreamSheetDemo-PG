@@ -17,8 +17,8 @@ data class PaymentRequest(
     val amount: Long?,
     @field:NotBlank(message = "paymentMethod is required")
     val paymentMethod: String,
-    // If omitted, server defaults to PAYMENT_COMPLETED.
-    // 미지정 시 서버가 PAYMENT_COMPLETED로 처리합니다.
+    // /api/v1/payments는 '요청 생성'만 처리하므로 status/failureReason은 서버에서 무시됩니다.
+    // (현실적인 타임라인을 위해 status 전이는 별도 전이 API로 수행합니다.)
     val status: PaymentStatus? = null,
     val failureReason: String? = null
 )

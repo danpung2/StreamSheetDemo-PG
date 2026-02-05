@@ -14,7 +14,6 @@ import java.time.LocalDate
 import java.util.Optional
 import java.util.UUID
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -66,10 +65,10 @@ class PaymentServiceTest {
         assertEquals("ORDER-1", response.orderId)
         assertEquals(1500L, response.amount)
         assertEquals("CARD", response.paymentMethod)
-        assertEquals(PaymentStatus.PAYMENT_COMPLETED, response.status)
+        assertEquals(PaymentStatus.PAYMENT_PENDING, response.status)
         assertEquals(requestedAt, response.requestedAt)
-        assertNotNull(response.processedAt)
-        assertNotNull(response.completedAt)
+        assertEquals(null, response.processedAt)
+        assertEquals(null, response.completedAt)
     }
 
     @Test

@@ -11,8 +11,7 @@ data class RefundRequest(
     @field:Positive(message = "refundAmount must be positive")
     val refundAmount: Long?,
     val refundReason: String?,
-    // If omitted, server defaults to REFUND_COMPLETED.
-    // 미지정 시 서버가 REFUND_COMPLETED로 처리합니다.
+    // /api/v1/payments/{id}/refund는 '환불 요청 생성'만 처리하므로 status/failureReason은 서버에서 무시됩니다.
     val status: RefundStatus? = null,
     val failureReason: String? = null
 )
