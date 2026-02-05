@@ -16,7 +16,11 @@ data class PaymentRequest(
     @field:Positive(message = "amount must be positive")
     val amount: Long?,
     @field:NotBlank(message = "paymentMethod is required")
-    val paymentMethod: String
+    val paymentMethod: String,
+    // If omitted, server defaults to PAYMENT_COMPLETED.
+    // 미지정 시 서버가 PAYMENT_COMPLETED로 처리합니다.
+    val status: PaymentStatus? = null,
+    val failureReason: String? = null
 )
 
 data class PaymentResponse(

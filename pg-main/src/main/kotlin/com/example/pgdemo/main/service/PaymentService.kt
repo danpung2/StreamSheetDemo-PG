@@ -28,15 +28,41 @@ class PaymentService(
 
         val amount = request.amount ?: throw IllegalArgumentException("amount is required")
         val now = Instant.now()
+        val status = request.status ?: PaymentStatus.PAYMENT_COMPLETED
         val payment = PaymentTransaction().apply {
             this.merchant = merchant
             orderId = request.orderId
             this.amount = amount
             paymentMethod = request.paymentMethod
-            status = PaymentStatus.PAYMENT_COMPLETED
+            this.status = status
             requestedAt = now
-            processedAt = now
-            completedAt = now
+            when (status) {
+                PaymentStatus.PAYMENT_PENDING -> {
+                    processedAt = null
+                    completedAt = null
+                    failureReason = null
+                }
+                PaymentStatus.PAYMENT_PROCESSING -> {
+                    processedAt = now
+                    completedAt = null
+                    failureReason = null
+                }
+                PaymentStatus.PAYMENT_COMPLETED -> {
+                    processedAt = now
+                    completedAt = now
+                    failureReason = null
+                }
+                PaymentStatus.PAYMENT_CANCELLED -> {
+                    processedAt = now
+                    completedAt = now
+                    failureReason = null
+                }
+                PaymentStatus.PAYMENT_FAILED -> {
+                    processedAt = now
+                    completedAt = null
+                    failureReason = request.failureReason
+                }
+            }
         }
 
         return paymentTransactionRepository.save(payment).toResponse()
