@@ -12,6 +12,8 @@ data class MerchantRequest(
     val merchantCode: String,
     @field:NotBlank(message = "name is required")
     val name: String,
+    @field:NotNull(message = "headquartersId is required")
+    val headquartersId: UUID?,
     @field:NotNull(message = "storeType is required")
     val storeType: StoreType?,
     @field:NotNull(message = "businessType is required")

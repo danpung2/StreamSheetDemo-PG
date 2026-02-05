@@ -108,8 +108,6 @@ interface MerchantRepository : JpaRepository<Merchant, UUID>, JpaSpecificationEx
      * @return paginated search result / 페이지네이션된 검색 결과
      */
     fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Merchant>
-
-    fun findByHeadquartersIsNull(pageable: Pageable): Page<Merchant>
     
     /**
      * Find merchants by headquarters and status.
