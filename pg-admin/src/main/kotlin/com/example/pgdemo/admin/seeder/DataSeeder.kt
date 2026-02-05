@@ -5,6 +5,8 @@ import com.example.pgdemo.common.domain.entity.Headquarters
 import com.example.pgdemo.common.domain.entity.Merchant
 import com.example.pgdemo.common.domain.entity.PaymentTransaction
 import com.example.pgdemo.common.domain.entity.RefundTransaction
+import com.example.pgdemo.common.domain.document.ExportJob
+import com.example.pgdemo.common.domain.document.PaymentExportView
 import com.example.pgdemo.common.domain.`enum`.BusinessType
 import com.example.pgdemo.common.domain.`enum`.PaymentStatus
 import com.example.pgdemo.common.domain.`enum`.RefundStatus
@@ -15,8 +17,12 @@ import com.example.pgdemo.common.domain.repository.AdminUserRepository
 import com.example.pgdemo.common.domain.repository.HeadquartersRepository
 import com.example.pgdemo.common.domain.repository.MerchantRepository
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
+import com.example.pgdemo.common.domain.repository.RefreshTokenRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
 import org.slf4j.LoggerFactory
+import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.query.Criteria
+import org.springframework.data.mongodb.core.query.Query
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -44,6 +50,8 @@ class DataSeeder(
     private val paymentTransactionRepository: PaymentTransactionRepository,
     private val refundTransactionRepository: RefundTransactionRepository,
     private val adminUserRepository: AdminUserRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
+    private val mongoTemplate: MongoTemplate,
     private val passwordEncoder: PasswordEncoder
 ) {
     companion object {
@@ -121,6 +129,37 @@ class DataSeeder(
         
         private val LAST_NAMES = listOf("김", "이", "박", "최", "정", "강", "조", "윤", "장", "임")
         private val FIRST_NAMES = listOf("민준", "서연", "하준", "지우", "도윤", "수아", "예준", "하은", "시우", "지아")
+
+        // Locations used for branch naming.
+        // 매장명 생성을 위한 지역/랜드마크 토큰
+        private val BRANCH_LOCATIONS = listOf(
+            // Seoul - Gangnam
+            "강남", "강남역", "역삼", "선릉", "삼성", "코엑스", "대치", "논현", "신사", "압구정", "청담", "도산공원",
+            // Seoul - Songpa/Gangdong
+            "잠실", "잠실역", "석촌", "송파", "가락", "문정", "장지", "위례", "천호", "성내", "길동", "둔촌",
+            // Seoul - Seocho/Yangjae
+            "서초", "교대", "방배", "반포", "잠원", "양재", "양재역", "매봉", "서초대로",
+            // Seoul - Mapo/Seodaemun
+            "홍대", "홍대입구", "합정", "상수", "망원", "연남", "신촌", "이대", "아현", "공덕", "마포", "상암",
+            // Seoul - Yeongdeungpo/Guro
+            "여의도", "IFC", "영등포", "타임스퀘어", "문래", "신도림", "가산디지털", "구로디지털", "대림", "신림", "서울대입구",
+            // Seoul - Jung/Jongno/Yongsan
+            "명동", "을지로", "종로", "광화문", "시청", "동대문", "DDP", "혜화", "대학로", "서울역", "용산", "삼각지",
+            // Seoul - Seongdong/Gwangjin
+            "왕십리", "성수", "서울숲", "뚝섬", "건대입구", "어린이대공원",
+            // Seoul - Yongsan/Hannam
+            "이태원", "한남", "경리단", "남산",
+            // Gyeonggi - Seongnam/Suwon/Yongin
+            "판교", "정자", "서현", "야탑", "수내", "광교", "영통", "인계", "수원역", "분당", "죽전", "기흥",
+            // Incheon/Songdo
+            "송도", "센트럴파크", "청라", "부평", "인천터미널",
+            // Other cities
+            "부산서면", "해운대", "광안리", "대구동성로", "대전둔산", "광주상무", "제주연동", "제주공항"
+        )
+
+        private val BRANCH_SUFFIXES = listOf(
+            "점", "역점", "DT점", "센터점", "타워점", "몰점", "캠퍼스점", "파크점", "시티점", "스퀘어점", "아울렛점"
+        )
     }
     
     // Counters for progress tracking
@@ -130,6 +169,146 @@ class DataSeeder(
     private val paymentCounter = AtomicInteger(0)
     private val refundCounter = AtomicInteger(0)
     private val adminCounter = AtomicInteger(0)
+
+    enum class BranchNamingStyle {
+        BONJEOM_FIRST,
+        NUMBERED_ONLY,
+        LOCATION_ONLY
+    }
+
+    private class HqMerchantNameGenerator(
+        private val headquartersName: String,
+        private val namingStyle: BranchNamingStyle,
+        private val random: Random
+    ) {
+        private val usedNames = HashSet<String>()
+        private val locations = BRANCH_LOCATIONS.shuffled(random)
+        private val suffixes = BRANCH_SUFFIXES
+        private val flagshipLocation = locations.firstOrNull() ?: "본점"
+        private var index = 0
+        private var branchSeq = 1
+
+        fun nextName(): String {
+            while (true) {
+                val candidate = buildCandidate()
+                if (usedNames.add(candidate)) {
+                    return candidate
+                }
+
+                // Collision fallback: use a realistic numbered suffix (e.g. 강남2호점).
+                // 충돌 시: 현실적인 번호 표기(예: 강남2호점)로 유니크 보장
+                val fallbackLocation = locations.getOrNull(index % locations.size) ?: flagshipLocation
+                val fallback = "$headquartersName ${fallbackLocation}${branchSeq}호점"
+                branchSeq += 1
+                if (usedNames.add(fallback)) {
+                    return fallback
+                }
+            }
+        }
+
+        private fun buildCandidate(): String {
+            val current = index
+            index += 1
+
+            if (namingStyle == BranchNamingStyle.BONJEOM_FIRST && current == 0) {
+                return "$headquartersName ${flagshipLocation}본점"
+            }
+
+            val location = locations[current % locations.size]
+
+            return when (namingStyle) {
+                BranchNamingStyle.NUMBERED_ONLY -> {
+                    val seq = current + 1
+                    "$headquartersName ${location}${seq}호점"
+                }
+
+                BranchNamingStyle.BONJEOM_FIRST,
+                BranchNamingStyle.LOCATION_ONLY -> {
+                    val suffix = suffixes[current % suffixes.size]
+                    "$headquartersName ${location}${suffix}"
+                }
+            }
+        }
+    }
+
+    private fun pickBranchNamingStyle(random: Random): BranchNamingStyle {
+        // Weighted choice; different HQs follow different conventions.
+        // 가중치 기반 선택: HQ마다 매장명 관행이 다르도록
+        return when (random.nextInt(100)) {
+            in 0..44 -> BranchNamingStyle.BONJEOM_FIRST      // 45%
+            in 45..79 -> BranchNamingStyle.LOCATION_ONLY     // 35%
+            else -> BranchNamingStyle.NUMBERED_ONLY          // 20%
+        }
+    }
+
+    private fun uniqueHeadquartersName(baseName: String, usedNames: MutableSet<String>): String {
+        if (usedNames.add(baseName)) {
+            return baseName
+        }
+
+        // Avoid debug-ish "#n"; use more plausible corp suffixes.
+        // 디버그성 "#n" 대신 현실적인 법인/브랜드 접미사 사용
+        val suffixes = listOf("코리아", "리테일", "그룹", "파트너스", "홀딩스", "프랜차이즈")
+        for (suffix in suffixes) {
+            val candidate = "$baseName $suffix"
+            if (usedNames.add(candidate)) {
+                return candidate
+            }
+        }
+
+        // Last resort: append a deterministic numeric token (still realistic-ish).
+        // 최후 수단: 숫자 토큰(현실적 표기) 추가
+        var n = 2
+        while (true) {
+            val candidate = "$baseName $n"
+            if (usedNames.add(candidate)) {
+                return candidate
+            }
+            n += 1
+        }
+    }
+
+    /**
+     * Delete existing demo data so we can reseed.
+     * 재시딩을 위해 기존 데모 데이터를 삭제합니다.
+     */
+    @Transactional
+    fun resetAll() {
+        val startTime = System.currentTimeMillis()
+        logger.warn("=== Resetting demo data (relational DB) / 데모 데이터 리셋(관계형 DB) ===")
+
+        // Mongo collections used by admin (export jobs, materialized export view).
+        // admin에서 사용하는 Mongo 컬렉션(export job, 물질화 export view)
+        runCatching { mongoTemplate.dropCollection(ExportJob::class.java) }
+            .onSuccess { logger.warn("Dropped Mongo collection: ExportJob") }
+            .onFailure { e -> logger.warn("Failed to drop Mongo collection: ExportJob", e) }
+
+        runCatching { mongoTemplate.dropCollection(PaymentExportView::class.java) }
+            .onSuccess { logger.warn("Dropped Mongo collection: PaymentExportView") }
+            .onFailure { e -> logger.warn("Failed to drop Mongo collection: PaymentExportView", e) }
+
+        // Reset pg-main sync cursor so the materialized view can be rebuilt from scratch.
+        // pg-main 동기화 커서를 리셋하여 물질화 뷰를 처음부터 재구축 가능하게 함
+        runCatching {
+            mongoTemplate.remove(
+                Query.query(Criteria.where("_id").`is`("payment_export_view")),
+                "sync_state"
+            )
+        }
+            .onSuccess { logger.warn("Removed Mongo sync_state: payment_export_view") }
+            .onFailure { e -> logger.warn("Failed to remove Mongo sync_state: payment_export_view", e) }
+
+        // FK-safe delete order
+        // FK 고려 삭제 순서
+        refundTransactionRepository.deleteAllInBatch()
+        paymentTransactionRepository.deleteAllInBatch()
+        refreshTokenRepository.deleteAllInBatch()
+        merchantRepository.deleteAllInBatch()
+        headquartersRepository.deleteAllInBatch()
+
+        val durationMs = System.currentTimeMillis() - startTime
+        logger.warn("=== Reset complete in ${durationMs}ms / 리셋 완료 (${durationMs}ms) ===")
+    }
     
     /**
      * Seed all data. Main entry point.
@@ -188,10 +367,12 @@ class DataSeeder(
         val result = mutableListOf<Headquarters>()
         val batch = mutableListOf<Headquarters>()
         
+        val usedNames = HashSet<String>(HEADQUARTERS_COUNT)
         repeat(HEADQUARTERS_COUNT) { index ->
             val hq = Headquarters().apply {
                 headquartersCode = "HQ${String.format("%05d", index + 1)}"
-                name = COMPANY_NAMES[index % COMPANY_NAMES.size]
+                val baseName = COMPANY_NAMES[index % COMPANY_NAMES.size]
+                name = uniqueHeadquartersName(baseName, usedNames)
                 businessNumber = "${100 + (index / 100)}-${10 + ((index / 10) % 10)}-${10000 + index}"
                 contractType = if (Random.nextBoolean()) "PREMIUM" else "STANDARD"
                 status = if (Random.nextInt(100) < 95) "ACTIVE" else "INACTIVE"
@@ -229,13 +410,25 @@ class DataSeeder(
         val batch = mutableListOf<Merchant>()
         val businessTypes = BusinessType.entries.toTypedArray()
         val storeTypes = StoreType.entries.toTypedArray()
-        
+
+        val nameGenerators = headquarters.associate { hq ->
+            val seed = (hq.id?.hashCode() ?: hq.headquartersCode.hashCode())
+            val random = Random(seed)
+            val style = pickBranchNamingStyle(random)
+            hq.id!! to HqMerchantNameGenerator(
+                headquartersName = hq.name,
+                namingStyle = style,
+                random = random
+            )
+        }
+
         repeat(MERCHANT_COUNT) { index ->
             val hq = headquarters[index % headquarters.size]
+            val generator = nameGenerators[hq.id] ?: error("Missing name generator for headquarters: ${hq.id}")
             val merchant = Merchant().apply {
                 merchantCode = "M${String.format("%08d", index + 1)}"
                 this.headquarters = hq
-                name = "${hq.name} ${generateBranchName(index)}"
+                name = generator.nextName()
                 storeNumber = index + 1
                 storeType = storeTypes[Random.nextInt(storeTypes.size)]
                 businessType = businessTypes[Random.nextInt(businessTypes.size)]
@@ -449,12 +642,45 @@ class DataSeeder(
         val batch = mutableListOf<AdminUser>()
         val roles = UserRole.entries.toTypedArray()
         val encodedPassword = passwordEncoder.encode("password123!")
+        val encodedOperatorPassword = passwordEncoder.encode("admin123!")
 
         // 이미 존재하는 이메일은 다시 생성하지 않습니다.
         // Skip creating accounts that already exist (by email).
         val existingEmails = adminUserRepository.findAll().asSequence().map { it.email }.toHashSet()
         var skippedCount = 0
         
+        // Ensure operator admin for demos (idempotent).
+        // 데모용 운영사 관리자 계정 보장(멱등)
+        run {
+            val email = "admin@pgdemo.com"
+            val existing = adminUserRepository.findByEmail(email)
+            if (existing == null) {
+                batch.add(
+                    createAdminUser(
+                        email = email,
+                        role = UserRole.ADMIN,
+                        tenantType = TenantType.OPERATOR,
+                        tenantId = null,
+                        encodedPassword = encodedOperatorPassword
+                    ).apply {
+                        name = "시스템 관리자"
+                        status = "ACTIVE"
+                    }
+                )
+                existingEmails.add(email)
+            } else {
+                existing.email = email
+                existing.passwordHash = encodedOperatorPassword
+                existing.name = "시스템 관리자"
+                existing.tenantType = TenantType.OPERATOR
+                existing.tenantId = null
+                existing.role = UserRole.ADMIN
+                existing.status = "ACTIVE"
+                adminUserRepository.save(existing)
+                existingEmails.add(email)
+            }
+        }
+
         // Create operator admins (platform-wide)
         // 운영자 관리자 생성 (플랫폼 전체)
         val operatorCount = minOf(50, ADMIN_USER_COUNT / 10)
@@ -532,6 +758,71 @@ class DataSeeder(
                 logProgress("Admin Users / 관리자", adminCounter.get(), ADMIN_USER_COUNT)
             }
         }
+
+        // Ensure deterministic demo accounts for documentation/manual testing.
+        // 문서/수동 테스트를 위한 고정 데모 계정(본사/업체) 보장
+        val firstHeadquartersId = headquarters.firstOrNull()?.id
+        val firstMerchantId = merchants.firstOrNull()?.id
+
+        if (firstHeadquartersId != null) {
+            val email = "hq_admin@pgdemo.com"
+            val existing = adminUserRepository.findByEmail(email)
+            if (existing == null) {
+                batch.add(
+                    createAdminUser(
+                        email = email,
+                        role = UserRole.ADMIN,
+                        tenantType = TenantType.HEADQUARTERS,
+                        tenantId = firstHeadquartersId,
+                        encodedPassword = encodedPassword
+                    ).apply {
+                        name = "HQ Admin"
+                        status = "ACTIVE"
+                    }
+                )
+                existingEmails.add(email)
+            } else {
+                existing.email = email
+                existing.passwordHash = encodedPassword
+                existing.name = "HQ Admin"
+                existing.tenantType = TenantType.HEADQUARTERS
+                existing.tenantId = firstHeadquartersId
+                existing.role = UserRole.ADMIN
+                existing.status = "ACTIVE"
+                adminUserRepository.save(existing)
+                existingEmails.add(email)
+            }
+        }
+
+        if (firstMerchantId != null) {
+            val email = "merchant_admin@pgdemo.com"
+            val existing = adminUserRepository.findByEmail(email)
+            if (existing == null) {
+                batch.add(
+                    createAdminUser(
+                        email = email,
+                        role = UserRole.ADMIN,
+                        tenantType = TenantType.MERCHANT,
+                        tenantId = firstMerchantId,
+                        encodedPassword = encodedPassword
+                    ).apply {
+                        name = "Merchant Admin"
+                        status = "ACTIVE"
+                    }
+                )
+                existingEmails.add(email)
+            } else {
+                existing.email = email
+                existing.passwordHash = encodedPassword
+                existing.name = "Merchant Admin"
+                existing.tenantType = TenantType.MERCHANT
+                existing.tenantId = firstMerchantId
+                existing.role = UserRole.ADMIN
+                existing.status = "ACTIVE"
+                adminUserRepository.save(existing)
+                existingEmails.add(email)
+            }
+        }
         
         // Save remaining batch
         // 남은 배치 저장
@@ -565,12 +856,6 @@ class DataSeeder(
         }
     }
     
-    private fun generateBranchName(index: Int): String {
-        val districts = listOf("강남", "홍대", "신촌", "명동", "종로", "이태원", "압구정", "여의도", "광화문", "잠실")
-        val suffixes = listOf("점", "역점", "본점", "지점", "센터점")
-        return "${districts[index % districts.size]}${suffixes[Random.nextInt(suffixes.size)]}"
-    }
-
     private fun generatePaymentStatus(): PaymentStatus {
         return when (Random.nextInt(1000)) {
             in 0..974 -> PaymentStatus.PAYMENT_COMPLETED    // 97.5%

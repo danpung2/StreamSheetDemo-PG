@@ -1,6 +1,7 @@
 package com.example.pgdemo.admin.seeder
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.annotation.Profile
 import org.springframework.core.annotation.Order
@@ -26,12 +27,18 @@ import org.springframework.stereotype.Component
  * ```
  * ./gradlew :pg-admin:bootRun --args='--spring.profiles.active=seeder'
  * ```
+ *
+ * Reset + seed (WARNING: wipes relational DB + Mongo demo collections) / 리셋+시딩(주의: DB/Mongo 데이터 삭제):
+ * ```
+ * ./gradlew :pg-admin:bootRun --args='--spring.profiles.active=seeder --pgdemo.seeder.reset=true'
+ * ```
  */
 @Component
 @Profile("seeder")
 @Order(1)
 class DataSeederRunner(
-    private val dataSeeder: DataSeeder
+    private val dataSeeder: DataSeeder,
+    @Value("\${pgdemo.seeder.reset:false}") private val resetBeforeSeed: Boolean
 ) : CommandLineRunner {
     
     companion object {
@@ -44,6 +51,10 @@ class DataSeederRunner(
         logger.info("============================================")
         
         try {
+            if (resetBeforeSeed) {
+                logger.warn("RESET enabled: deleting existing data before seeding / RESET 활성화: 시딩 전 기존 데이터 삭제")
+                dataSeeder.resetAll()
+            }
             dataSeeder.seedAll()
             
             logger.info("============================================")

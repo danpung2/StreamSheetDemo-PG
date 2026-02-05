@@ -5,6 +5,9 @@
 # ./gradlew :pg-admin:bootRun --args='--spring.profiles.active=seeder'
 # 또는 / or:
 # java -jar pg-admin.jar --spring.profiles.active=seeder
+#
+# 기존 데이터 삭제 후 재시딩(주의: 관계형 DB 데이터 삭제) / Reset and reseed (WARNING: wipes relational DB data):
+# ./gradlew :pg-admin:bootRun --args='--spring.profiles.active=seeder --pgdemo.seeder.reset=true'
 
 spring:
   # JPA 배치 삽입 최적화 설정
