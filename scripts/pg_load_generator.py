@@ -308,41 +308,39 @@ def build_payment_payload(rng: random.Random, merchant_id: str, merchant_code: s
 
     order_id = f"ORD{time.time_ns()}-{rng.randint(1, 999999999):09d}"
 
-    # Weighted status distribution
-    roll = rng.randint(0, 999)
-    if roll <= 974:
-        status = "PAYMENT_COMPLETED"
-        failure_reason = None
-    elif roll <= 976:
-        status = "PAYMENT_FAILED"
-        failure_reason = _rand_choice(
-            rng,
-            [
-                "잔액 부족",
-                "카드 한도 초과",
-                "통신 오류",
-                "결제 거절",
-                "유효하지 않은 카드",
-            ],
-        )
-    elif roll <= 991:
-        status = "PAYMENT_PROCESSING"
-        failure_reason = None
-    elif roll <= 995:
-        status = "PAYMENT_PENDING"
-        failure_reason = None
-    else:
-        status = "PAYMENT_CANCELLED"
-        failure_reason = None
-
     return {
         "merchantId": merchant_id,
         "orderId": order_id,
         "amount": int(amount),
         "paymentMethod": _rand_choice(rng, payment_methods),
-        "status": status,
-        "failureReason": failure_reason,
     }
+
+
+def choose_payment_outcome(rng: random.Random):
+    """Pick a realistic payment lifecycle outcome (state machine target)."""
+
+    roll = rng.randint(0, 999)
+    if roll <= 974:
+        return "PAYMENT_COMPLETED", None
+    if roll <= 976:
+        return (
+            "PAYMENT_FAILED",
+            _rand_choice(
+                rng,
+                [
+                    "잔액 부족",
+                    "카드 한도 초과",
+                    "통신 오류",
+                    "결제 거절",
+                    "유효하지 않은 카드",
+                ],
+            ),
+        )
+    if roll <= 991:
+        return "PAYMENT_PROCESSING", None
+    if roll <= 995:
+        return "PAYMENT_PENDING", None
+    return "PAYMENT_CANCELLED", None
 
 
 def get_refund_reason(rng: random.Random, business_type: str):
@@ -387,34 +385,34 @@ def build_refund_payload(rng: random.Random, payment_amount: int, business_type:
         refund_amount = int(max(100, int((payment_amount * ratio) // 100 * 100)))
         refund_amount = min(refund_amount, payment_amount)
 
-    roll = rng.randint(0, 999)
-    if roll <= 959:
-        status = "REFUND_COMPLETED"
-        failure_reason = None
-    elif roll <= 964:
-        status = "REFUND_FAILED"
-        failure_reason = _rand_choice(
-            rng,
-            [
-                "환불 기간 초과",
-                "계좌 정보 오류",
-                "시스템 오류",
-                "환불 불가 상품",
-            ],
-        )
-    elif roll <= 984:
-        status = "REFUND_PROCESSING"
-        failure_reason = None
-    else:
-        status = "REFUND_PENDING"
-        failure_reason = None
-
     return {
         "refundAmount": int(refund_amount),
         "refundReason": get_refund_reason(rng, business_type),
-        "status": status,
-        "failureReason": failure_reason,
     }
+
+
+def choose_refund_outcome(rng: random.Random):
+    """Pick a realistic refund lifecycle outcome (state machine target)."""
+
+    roll = rng.randint(0, 999)
+    if roll <= 959:
+        return "REFUND_COMPLETED", None
+    if roll <= 964:
+        return (
+            "REFUND_FAILED",
+            _rand_choice(
+                rng,
+                [
+                    "환불 기간 초과",
+                    "계좌 정보 오류",
+                    "시스템 오류",
+                    "환불 불가 상품",
+                ],
+            ),
+        )
+    if roll <= 984:
+        return "REFUND_PROCESSING", None
+    return "REFUND_PENDING", None
 
 
 def main(argv):
@@ -508,7 +506,14 @@ def main(argv):
         "seed_bootstrap": base + "/api/v1/internal/seed/bootstrap",
         "merchant_list": base + "/api/v1/merchants",
         "payment_create": base + "/api/v1/payments",
+        "payment_process": base + "/api/v1/payments/{id}/process",
+        "payment_complete": base + "/api/v1/payments/{id}/complete",
+        "payment_fail": base + "/api/v1/payments/{id}/fail",
+        "payment_cancel": base + "/api/v1/payments/{id}/cancel",
         "refund_create": base + "/api/v1/payments/{id}/refund",
+        "refund_process": base + "/api/v1/refunds/{id}/process",
+        "refund_complete": base + "/api/v1/refunds/{id}/complete",
+        "refund_fail": base + "/api/v1/refunds/{id}/fail",
     }
 
     merchant_pool = []  # list of dict: {id, merchantCode, name, businessType}
@@ -516,6 +521,10 @@ def main(argv):
     def log(msg: str):
         sys.stdout.write(msg + "\n")
         sys.stdout.flush()
+
+    def sleep_small_ms():
+        # Small per-transition delay to ensure realistic event timestamps.
+        time.sleep((20 + rng.randint(0, 180)) / 1000.0)
 
     if args.dry_run:
         sample_code = f"M{rng.randint(1, 99999999):08d}"
@@ -639,6 +648,7 @@ def main(argv):
 
             m = merchant_pool[rng.randrange(0, len(merchant_pool))]
             pay_payload = build_payment_payload(rng, m["id"], m["merchantCode"])
+            desired_status, desired_failure_reason = choose_payment_outcome(rng)
             status, text = _http_json(
                 "POST", endpoints["payment_create"], pay_payload, args.timeout
             )
@@ -654,26 +664,146 @@ def main(argv):
                 if not payment_id:
                     log(f"[payment:create] WARN missing id body={text}")
                 else:
-                    if (
-                        rng.random() < args.refund_rate
-                        and pay.get("status") == "PAYMENT_COMPLETED"
-                    ):
-                        refund_payload = build_refund_payload(
-                            rng,
-                            int(pay_payload["amount"]),
-                            m.get("businessType", "OTHER"),
+                    # Payment lifecycle transitions (Requested -> Processed -> Completed/Failed/Cancelled)
+                    if desired_status != "PAYMENT_PENDING":
+                        sleep_small_ms()
+                        p_status, p_text = _http_json(
+                            "POST",
+                            endpoints["payment_process"].format(id=payment_id),
+                            None,
+                            args.timeout,
                         )
-                        refund_url = endpoints["refund_create"].format(id=payment_id)
-                        r_status, r_text = _http_json(
-                            "POST", refund_url, refund_payload, args.timeout
-                        )
-                        if r_status != 201:
-                            counters["refunds_fail"] += 1
+                        if p_status != 200:
+                            counters["payments_fail"] += 1
                             log(
-                                f"[refund:create] FAIL status={r_status} payment={payment_id} refund={_format_amount_krw(refund_payload['refundAmount'])} body={r_text}"
+                                f"[payment:process] FAIL status={p_status} payment={payment_id} body={p_text}"
+                            )
+
+                    if desired_status == "PAYMENT_PROCESSING":
+                        pass
+                    elif desired_status == "PAYMENT_COMPLETED":
+                        sleep_small_ms()
+                        c_status, c_text = _http_json(
+                            "POST",
+                            endpoints["payment_complete"].format(id=payment_id),
+                            None,
+                            args.timeout,
+                        )
+                        if c_status != 200:
+                            counters["payments_fail"] += 1
+                            log(
+                                f"[payment:complete] FAIL status={c_status} payment={payment_id} body={c_text}"
                             )
                         else:
-                            counters["refunds_ok"] += 1
+                            # Refund lifecycle transitions (only for completed payments)
+                            if rng.random() < args.refund_rate:
+                                refund_payload = build_refund_payload(
+                                    rng,
+                                    int(pay_payload["amount"]),
+                                    m.get("businessType", "OTHER"),
+                                )
+                                refund_outcome, refund_failure_reason = (
+                                    choose_refund_outcome(rng)
+                                )
+                                refund_url = endpoints["refund_create"].format(
+                                    id=payment_id
+                                )
+                                r_status, r_text = _http_json(
+                                    "POST", refund_url, refund_payload, args.timeout
+                                )
+                                if r_status != 201:
+                                    counters["refunds_fail"] += 1
+                                    log(
+                                        f"[refund:create] FAIL status={r_status} payment={payment_id} refund={_format_amount_krw(refund_payload['refundAmount'])} body={r_text}"
+                                    )
+                                else:
+                                    counters["refunds_ok"] += 1
+                                    refund = _safe_json(r_text) or {}
+                                    refund_id = refund.get("id")
+                                    if not refund_id:
+                                        log(
+                                            f"[refund:create] WARN missing id body={r_text}"
+                                        )
+                                    else:
+                                        if refund_outcome != "REFUND_PENDING":
+                                            sleep_small_ms()
+                                            rp_status, rp_text = _http_json(
+                                                "POST",
+                                                endpoints["refund_process"].format(
+                                                    id=refund_id
+                                                ),
+                                                None,
+                                                args.timeout,
+                                            )
+                                            if rp_status != 200:
+                                                counters["refunds_fail"] += 1
+                                                log(
+                                                    f"[refund:process] FAIL status={rp_status} refund={refund_id} body={rp_text}"
+                                                )
+
+                                        if refund_outcome == "REFUND_PROCESSING":
+                                            pass
+                                        elif refund_outcome == "REFUND_COMPLETED":
+                                            sleep_small_ms()
+                                            rc_status, rc_text = _http_json(
+                                                "POST",
+                                                endpoints["refund_complete"].format(
+                                                    id=refund_id
+                                                ),
+                                                None,
+                                                args.timeout,
+                                            )
+                                            if rc_status != 200:
+                                                counters["refunds_fail"] += 1
+                                                log(
+                                                    f"[refund:complete] FAIL status={rc_status} refund={refund_id} body={rc_text}"
+                                                )
+                                        elif refund_outcome == "REFUND_FAILED":
+                                            sleep_small_ms()
+                                            rf_status, rf_text = _http_json(
+                                                "POST",
+                                                endpoints["refund_fail"].format(
+                                                    id=refund_id
+                                                ),
+                                                {
+                                                    "failureReason": refund_failure_reason
+                                                    or "SYSTEM"
+                                                },
+                                                args.timeout,
+                                            )
+                                            if rf_status != 200:
+                                                counters["refunds_fail"] += 1
+                                                log(
+                                                    f"[refund:fail] FAIL status={rf_status} refund={refund_id} body={rf_text}"
+                                                )
+
+                    elif desired_status == "PAYMENT_FAILED":
+                        sleep_small_ms()
+                        f_status, f_text = _http_json(
+                            "POST",
+                            endpoints["payment_fail"].format(id=payment_id),
+                            {"failureReason": desired_failure_reason or "SYSTEM"},
+                            args.timeout,
+                        )
+                        if f_status != 200:
+                            counters["payments_fail"] += 1
+                            log(
+                                f"[payment:fail] FAIL status={f_status} payment={payment_id} body={f_text}"
+                            )
+
+                    elif desired_status == "PAYMENT_CANCELLED":
+                        sleep_small_ms()
+                        x_status, x_text = _http_json(
+                            "POST",
+                            endpoints["payment_cancel"].format(id=payment_id),
+                            None,
+                            args.timeout,
+                        )
+                        if x_status != 200:
+                            counters["payments_fail"] += 1
+                            log(
+                                f"[payment:cancel] FAIL status={x_status} payment={payment_id} body={x_text}"
+                            )
 
             now = time.time()
             if now >= next_report:
