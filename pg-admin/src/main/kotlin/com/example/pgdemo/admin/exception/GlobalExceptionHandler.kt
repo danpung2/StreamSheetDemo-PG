@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 /**
@@ -87,6 +88,31 @@ class GlobalExceptionHandler {
                 message = ex.message ?: "Invalid request",
                 timestamp = Instant.now()
             ))
+    }
+
+    /**
+     * ResponseStatusException 처리
+     * Keep HTTP status codes from service layer
+     */
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatus(ex: ResponseStatusException): ResponseEntity<ErrorResponse> {
+        val status = ex.statusCode
+        val message = ex.reason ?: ex.message ?: status.toString()
+        if (status.is4xxClientError) {
+            log.warn("Request failed: status={}, reason={}", status.value(), message)
+        } else {
+            log.error("Request failed: status={}, reason={}", status.value(), message, ex)
+        }
+
+        return ResponseEntity
+            .status(status)
+            .body(
+                ErrorResponse(
+                    error = status.toString(),
+                    message = message,
+                    timestamp = Instant.now()
+                )
+            )
     }
 
     /**
