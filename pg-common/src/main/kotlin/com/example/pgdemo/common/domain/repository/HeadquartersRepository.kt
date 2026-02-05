@@ -35,6 +35,8 @@ interface HeadquartersRepository : JpaRepository<Headquarters, UUID> {
      * @return true if exists, false otherwise / 존재하면 true, 아니면 false
      */
     fun existsByHeadquartersCode(headquartersCode: String): Boolean
+
+    fun existsByNameIgnoreCase(name: String): Boolean
     
     /**
      * Find all headquarters with given status.
