@@ -1,6 +1,7 @@
 package com.example.pgdemo.main.service
 
 import com.example.pgdemo.common.domain.entity.RefundTransaction
+import com.example.pgdemo.common.domain.enum.PaymentStatus
 import com.example.pgdemo.common.domain.enum.RefundStatus
 import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
@@ -22,6 +23,10 @@ class RefundService(
         val payment = paymentTransactionRepository.findById(paymentId)
             .orElseThrow { ResourceNotFoundException("Payment not found") }
 
+        if (payment.status != PaymentStatus.PAYMENT_COMPLETED) {
+            throw IllegalStateException("Payment must be completed to request refund")
+        }
+
         val existingRefunds = refundTransactionRepository.findByPaymentId(paymentId)
         if (existingRefunds.any { it.status == RefundStatus.REFUND_PENDING || it.status == RefundStatus.REFUND_PROCESSING }) {
             throw IllegalStateException("Refund is already pending/processing")
@@ -32,42 +37,22 @@ class RefundService(
 
         val refundAmount = request.refundAmount ?: throw IllegalArgumentException("refundAmount is required")
         val now = Instant.now()
-        val status = request.status ?: RefundStatus.REFUND_COMPLETED
         val refund = RefundTransaction().apply {
             this.payment = payment
             this.refundAmount = refundAmount
             refundReason = request.refundReason
-            this.status = status
             requestedAt = now
-            when (status) {
-                RefundStatus.REFUND_PENDING -> {
-                    processedAt = null
-                    completedAt = null
-                    failureReason = null
-                }
-                RefundStatus.REFUND_PROCESSING -> {
-                    processedAt = now
-                    completedAt = null
-                    failureReason = null
-                }
-                RefundStatus.REFUND_COMPLETED -> {
-                    processedAt = now
-                    completedAt = now
-                    failureReason = null
-                }
-                RefundStatus.REFUND_FAILED -> {
-                    processedAt = now
-                    completedAt = null
-                    failureReason = request.failureReason
-                }
-            }
+            status = RefundStatus.REFUND_PENDING
+            processedAt = null
+            completedAt = null
+            failureReason = null
         }
 
         return refundTransactionRepository.save(refund).toResponse()
     }
 }
 
-private fun RefundTransaction.toResponse(): RefundResponse {
+fun RefundTransaction.toResponse(): RefundResponse {
     val refundId = id ?: throw IllegalStateException("Refund id is missing")
     val paymentId = payment.id ?: throw IllegalStateException("Payment id is missing")
 

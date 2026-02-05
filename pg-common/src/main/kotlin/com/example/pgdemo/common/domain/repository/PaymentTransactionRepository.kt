@@ -452,6 +452,63 @@ interface PaymentTransactionRepository :
             @Param("processedAt") processedAt: Instant
     ): Int
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE PaymentTransaction p
+        SET p.status = :toStatus,
+            p.processedAt = :processedAt
+        WHERE p.id = :id
+          AND p.status IN :fromStatuses
+          AND p.processedAt IS NULL
+        """
+    )
+    fun transitionToProcessing(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<PaymentStatus>,
+        @Param("toStatus") toStatus: PaymentStatus,
+        @Param("processedAt") processedAt: Instant
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE PaymentTransaction p
+        SET p.status = :toStatus,
+            p.completedAt = :completedAt
+        WHERE p.id = :id
+          AND p.status IN :fromStatuses
+          AND p.processedAt IS NOT NULL
+          AND p.completedAt IS NULL
+        """
+    )
+    fun transitionToCompletedAt(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<PaymentStatus>,
+        @Param("toStatus") toStatus: PaymentStatus,
+        @Param("completedAt") completedAt: Instant
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE PaymentTransaction p
+        SET p.status = :toStatus,
+            p.processedAt = COALESCE(p.processedAt, :processedAt),
+            p.failureReason = COALESCE(p.failureReason, :failureReason)
+        WHERE p.id = :id
+          AND p.status IN :fromStatuses
+          AND p.status <> :toStatus
+        """
+    )
+    fun transitionToFailed(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<PaymentStatus>,
+        @Param("toStatus") toStatus: PaymentStatus,
+        @Param("processedAt") processedAt: Instant,
+        @Param("failureReason") failureReason: String
+    ): Int
+
     /**
      * Find payments needing synchronization to MongoDB. MongoDB로 동기화가 필요한 결제를 조회합니다.
      *

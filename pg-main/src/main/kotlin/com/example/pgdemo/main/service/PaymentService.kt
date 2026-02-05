@@ -28,41 +28,16 @@ class PaymentService(
 
         val amount = request.amount ?: throw IllegalArgumentException("amount is required")
         val now = Instant.now()
-        val status = request.status ?: PaymentStatus.PAYMENT_COMPLETED
         val payment = PaymentTransaction().apply {
             this.merchant = merchant
             orderId = request.orderId
             this.amount = amount
             paymentMethod = request.paymentMethod
-            this.status = status
             requestedAt = now
-            when (status) {
-                PaymentStatus.PAYMENT_PENDING -> {
-                    processedAt = null
-                    completedAt = null
-                    failureReason = null
-                }
-                PaymentStatus.PAYMENT_PROCESSING -> {
-                    processedAt = now
-                    completedAt = null
-                    failureReason = null
-                }
-                PaymentStatus.PAYMENT_COMPLETED -> {
-                    processedAt = now
-                    completedAt = now
-                    failureReason = null
-                }
-                PaymentStatus.PAYMENT_CANCELLED -> {
-                    processedAt = now
-                    completedAt = now
-                    failureReason = null
-                }
-                PaymentStatus.PAYMENT_FAILED -> {
-                    processedAt = now
-                    completedAt = null
-                    failureReason = request.failureReason
-                }
-            }
+            status = PaymentStatus.PAYMENT_PENDING
+            processedAt = null
+            completedAt = null
+            failureReason = null
         }
 
         return paymentTransactionRepository.save(payment).toResponse()
@@ -97,7 +72,7 @@ class PaymentService(
     }
 }
 
-private fun PaymentTransaction.toResponse(): PaymentResponse {
+fun PaymentTransaction.toResponse(): PaymentResponse {
     val paymentId = id ?: throw IllegalStateException("Payment id is missing")
     val merchantId = merchant.id ?: throw IllegalStateException("Merchant id is missing")
 

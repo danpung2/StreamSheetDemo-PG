@@ -301,6 +301,63 @@ interface RefundTransactionRepository : JpaRepository<RefundTransaction, UUID> {
         @Param("status") status: RefundStatus,
         @Param("processedAt") processedAt: Instant
     ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE RefundTransaction r
+        SET r.status = :toStatus,
+            r.processedAt = :processedAt
+        WHERE r.id = :id
+          AND r.status IN :fromStatuses
+          AND r.processedAt IS NULL
+        """
+    )
+    fun transitionToProcessing(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<RefundStatus>,
+        @Param("toStatus") toStatus: RefundStatus,
+        @Param("processedAt") processedAt: Instant
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE RefundTransaction r
+        SET r.status = :toStatus,
+            r.completedAt = :completedAt
+        WHERE r.id = :id
+          AND r.status IN :fromStatuses
+          AND r.processedAt IS NOT NULL
+          AND r.completedAt IS NULL
+        """
+    )
+    fun transitionToCompletedAt(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<RefundStatus>,
+        @Param("toStatus") toStatus: RefundStatus,
+        @Param("completedAt") completedAt: Instant
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE RefundTransaction r
+        SET r.status = :toStatus,
+            r.processedAt = COALESCE(r.processedAt, :processedAt),
+            r.failureReason = COALESCE(r.failureReason, :failureReason)
+        WHERE r.id = :id
+          AND r.status IN :fromStatuses
+          AND r.status <> :toStatus
+        """
+    )
+    fun transitionToFailed(
+        @Param("id") id: UUID,
+        @Param("fromStatuses") fromStatuses: Collection<RefundStatus>,
+        @Param("toStatus") toStatus: RefundStatus,
+        @Param("processedAt") processedAt: Instant,
+        @Param("failureReason") failureReason: String
+    ): Int
     
     /**
      * Find refunds needing synchronization to MongoDB.

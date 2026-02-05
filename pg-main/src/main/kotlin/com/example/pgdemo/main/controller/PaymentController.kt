@@ -1,9 +1,11 @@
 package com.example.pgdemo.main.controller
 
 import com.example.pgdemo.common.domain.enum.PaymentStatus
+import com.example.pgdemo.main.dto.PaymentFailRequest
 import com.example.pgdemo.main.dto.PaymentRequest
 import com.example.pgdemo.main.dto.PaymentResponse
 import com.example.pgdemo.main.service.PaymentService
+import com.example.pgdemo.main.service.PaymentTransitionService
 import jakarta.validation.Valid
 import java.time.Instant
 import java.util.UUID
@@ -22,7 +24,8 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/payments")
 class PaymentController(
-    private val paymentService: PaymentService
+    private val paymentService: PaymentService,
+    private val paymentTransitionService: PaymentTransitionService
 ) {
     @PostMapping
     fun requestPayment(@Valid @RequestBody request: PaymentRequest): ResponseEntity<PaymentResponse> {
@@ -52,5 +55,25 @@ class PaymentController(
     @GetMapping("/{id}")
     fun getPayment(@PathVariable id: UUID): PaymentResponse {
         return paymentService.getPayment(id)
+    }
+
+    @PostMapping("/{id}/process")
+    fun processPayment(@PathVariable id: UUID): PaymentResponse {
+        return paymentTransitionService.processPayment(id)
+    }
+
+    @PostMapping("/{id}/complete")
+    fun completePayment(@PathVariable id: UUID): PaymentResponse {
+        return paymentTransitionService.completePayment(id)
+    }
+
+    @PostMapping("/{id}/cancel")
+    fun cancelPayment(@PathVariable id: UUID): PaymentResponse {
+        return paymentTransitionService.cancelPayment(id)
+    }
+
+    @PostMapping("/{id}/fail")
+    fun failPayment(@PathVariable id: UUID, @Valid @RequestBody request: PaymentFailRequest): PaymentResponse {
+        return paymentTransitionService.failPayment(id, request)
     }
 }
