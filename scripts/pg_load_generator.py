@@ -11,6 +11,11 @@ import urllib.parse
 import urllib.request
 
 
+_HTTP_RETRIES = 20
+_HTTP_RETRY_SLEEP_MS = 250
+_HTTP_RETRY_MAX_SLEEP_MS = 2000
+
+
 def _iso_date(d: dt.date) -> str:
     return d.isoformat()
 
@@ -35,15 +40,46 @@ def _http_json(method: str, url: str, payload, timeout_s: float, headers=None):
         for k, v in headers.items():
             req.add_header(k, v)
 
-    try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            raw = resp.read()
+    sleep_ms = int(_HTTP_RETRY_SLEEP_MS or 0)
+    max_sleep_ms = int(_HTTP_RETRY_MAX_SLEEP_MS or 0)
+    max_retries = int(_HTTP_RETRIES or 0)
+
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                raw = resp.read()
+                text = raw.decode("utf-8") if raw else ""
+                return resp.status, text
+        except urllib.error.HTTPError as e:
+            raw = e.read()
             text = raw.decode("utf-8") if raw else ""
-            return resp.status, text
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        text = raw.decode("utf-8") if raw else ""
-        return e.code, text
+            if e.code >= 500 and attempt < max_retries:
+                if sleep_ms > 0:
+                    time.sleep((sleep_ms / 1000.0) + (random.random() * 0.05))
+                    if max_sleep_ms > 0:
+                        sleep_ms = min(sleep_ms * 2, max_sleep_ms)
+                    else:
+                        sleep_ms = sleep_ms * 2
+                attempt += 1
+                continue
+            return e.code, text
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            ConnectionResetError,
+            OSError,
+        ) as e:
+            if attempt < max_retries:
+                if sleep_ms > 0:
+                    time.sleep((sleep_ms / 1000.0) + (random.random() * 0.05))
+                    if max_sleep_ms > 0:
+                        sleep_ms = min(sleep_ms * 2, max_sleep_ms)
+                    else:
+                        sleep_ms = sleep_ms * 2
+                attempt += 1
+                continue
+            return 0, str(e)
 
 
 def _bearer(token: str) -> str:
@@ -428,6 +464,24 @@ def main(argv):
         help="pg-admin base URL (for API key issuance)",
     )
     p.add_argument("--timeout", type=float, default=5.0, help="HTTP timeout seconds")
+    p.add_argument(
+        "--http-retries",
+        type=int,
+        default=20,
+        help="HTTP request retries on network/5xx errors (default: 20)",
+    )
+    p.add_argument(
+        "--http-retry-sleep-ms",
+        type=int,
+        default=250,
+        help="Initial retry sleep in ms (default: 250)",
+    )
+    p.add_argument(
+        "--http-retry-max-sleep-ms",
+        type=int,
+        default=2000,
+        help="Max retry sleep in ms (default: 2000)",
+    )
     p.add_argument("--seed", type=int, default=None, help="random seed")
 
     p.add_argument(
@@ -498,6 +552,11 @@ def main(argv):
     )
 
     args = p.parse_args(argv)
+
+    global _HTTP_RETRIES, _HTTP_RETRY_SLEEP_MS, _HTTP_RETRY_MAX_SLEEP_MS
+    _HTTP_RETRIES = int(args.http_retries)
+    _HTTP_RETRY_SLEEP_MS = int(args.http_retry_sleep_ms)
+    _HTTP_RETRY_MAX_SLEEP_MS = int(args.http_retry_max_sleep_ms)
 
     rng = random.Random(args.seed)
     base = args.base_url.rstrip("/")

@@ -8,9 +8,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: pgdemo-postgres
-    ports:
-      - "5432:5432"
+    container_name: postgres
     environment:
       POSTGRES_DB: pgdemo
       POSTGRES_USER: pgdemo
@@ -29,9 +27,7 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: pgdemo-mongodb
-    ports:
-      - "27017:27017"
+    container_name: mongodb
     environment:
       MONGO_INITDB_DATABASE: pgdemo
     volumes:
@@ -43,10 +39,119 @@ services:
       retries: 5
     restart: unless-stopped
 
+  builder:
+    image: gradle:8.5-jdk21
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+      - artifacts:/artifacts
+      - ${HOME}/.m2:/root/.m2
+      - ${HOME}/.gradle:/root/.gradle
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+        ./gradlew --no-daemon :pg-main:bootJar :pg-admin:bootJar
+
+        MAIN_JAR="$$(ls -1 pg-main/build/libs/*.jar | grep -vE '(-plain\.jar)$$' | head -n 1)"
+        ADMIN_JAR="$$(ls -1 pg-admin/build/libs/*.jar | grep -vE '(-plain\.jar)$$' | head -n 1)"
+
+        cp "$$MAIN_JAR" /artifacts/pg-main.jar
+        cp "$$ADMIN_JAR" /artifacts/pg-admin.jar
+    restart: "no"
+
+  seeder:
+    image: eclipse-temurin:21-jre-jammy
+    depends_on:
+      builder:
+        condition: service_completed_successfully
+    volumes:
+      - artifacts:/artifacts:ro
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
+      SPRING_DATASOURCE_USERNAME: pgdemo
+      SPRING_DATASOURCE_PASSWORD: pgdemo
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+    command:
+      - java
+      - -jar
+      - /artifacts/pg-admin.jar
+      - --spring.profiles.active=seeder
+      - --spring.main.web-application-type=none
+      - --pgdemo.seeder.reset=false
+    restart: "no"
+
+  pg-main:
+    image: eclipse-temurin:21-jre-jammy
+    container_name: pg-main
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    volumes:
+      - artifacts:/artifacts:ro
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
+      SPRING_DATASOURCE_USERNAME: pgdemo
+      SPRING_DATASOURCE_PASSWORD: pgdemo
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+    command:
+      - java
+      - -jar
+      - /artifacts/pg-main.jar
+    restart: unless-stopped
+
+  pg-admin:
+    image: eclipse-temurin:21-jre-jammy
+    container_name: pg-admin
+    depends_on:
+      pg-main:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    volumes:
+      - artifacts:/artifacts:ro
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
+      SPRING_DATASOURCE_USERNAME: pgdemo
+      SPRING_DATASOURCE_PASSWORD: pgdemo
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+      PG_MAIN_BASE_URL: http://pg-main:8080
+    command:
+      - java
+      - -jar
+      - /artifacts/pg-admin.jar
+    restart: unless-stopped
+
+  traffic:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.traffic
+    depends_on:
+      pg-main:
+        condition: service_started
+    command:
+      - --base-url
+      - http://pg-main:8080
+      - --http-retries
+      - "20"
+      - --http-retry-sleep-ms
+      - "250"
+      - --http-retry-max-sleep-ms
+      - "2000"
+    restart: unless-stopped
+
 # 볼륨 정의
 # Volume definitions
 volumes:
   postgres_data:
     driver: local
   mongodb_data:
+    driver: local
+  artifacts:
     driver: local

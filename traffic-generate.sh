@@ -45,6 +45,15 @@ PG Demo Traffic Generator
   --timeout <sec>
       HTTP timeout seconds (default: 5.0)
 
+  --http-retries <n>
+      HTTP request retries on network/5xx errors (default: 20)
+
+  --http-retry-sleep-ms <ms>
+      Initial retry sleep in ms (default: 250)
+
+  --http-retry-max-sleep-ms <ms>
+      Max retry sleep in ms (default: 2000)
+
   --seed <n>
       난수 시드 / Random seed (default: unset)
 
@@ -84,6 +93,9 @@ REFUND_RATE="0.08"
 SLEEP_MS="250"
 JITTER_MS="400"
 TIMEOUT="5.0"
+HTTP_RETRIES="20"
+HTTP_RETRY_SLEEP_MS="250"
+HTTP_RETRY_MAX_SLEEP_MS="2000"
 SEED=""
 DRY_RUN="0"
 
@@ -130,6 +142,21 @@ while [[ $# -gt 0 ]]; do
       TIMEOUT="$2"
       shift 2
       ;;
+    --http-retries)
+      [[ $# -ge 2 ]] || die "--http-retries requires a value"
+      HTTP_RETRIES="$2"
+      shift 2
+      ;;
+    --http-retry-sleep-ms)
+      [[ $# -ge 2 ]] || die "--http-retry-sleep-ms requires a value"
+      HTTP_RETRY_SLEEP_MS="$2"
+      shift 2
+      ;;
+    --http-retry-max-sleep-ms)
+      [[ $# -ge 2 ]] || die "--http-retry-max-sleep-ms requires a value"
+      HTTP_RETRY_MAX_SLEEP_MS="$2"
+      shift 2
+      ;;
     --seed)
       [[ $# -ge 2 ]] || die "--seed requires a value"
       SEED="$2"
@@ -154,6 +181,9 @@ PY_ARGS=(
   "--sleep-ms" "$SLEEP_MS"
   "--jitter-ms" "$JITTER_MS"
   "--timeout" "$TIMEOUT"
+  "--http-retries" "$HTTP_RETRIES"
+  "--http-retry-sleep-ms" "$HTTP_RETRY_SLEEP_MS"
+  "--http-retry-max-sleep-ms" "$HTTP_RETRY_MAX_SLEEP_MS"
 )
 
 if [[ -n "$SEED" ]]; then

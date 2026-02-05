@@ -3,9 +3,12 @@ package com.example.pgdemo.admin.seeder
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.CommandLineRunner
+import org.springframework.boot.SpringApplication
 import org.springframework.context.annotation.Profile
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
+import kotlin.system.exitProcess
 
 /**
  * Command line runner for data seeding.
@@ -38,7 +41,8 @@ import org.springframework.stereotype.Component
 @Order(1)
 class DataSeederRunner(
     private val dataSeeder: DataSeeder,
-    @Value("\${pgdemo.seeder.reset:false}") private val resetBeforeSeed: Boolean
+    @Value("\${pgdemo.seeder.reset:false}") private val resetBeforeSeed: Boolean,
+    private val applicationContext: ConfigurableApplicationContext
 ) : CommandLineRunner {
     
     companion object {
@@ -62,6 +66,10 @@ class DataSeederRunner(
             logger.info("  You can now restart without 'seeder' profile")
             logger.info("  이제 'seeder' 프로필 없이 재시작하세요")
             logger.info("============================================")
+
+            // Ensure one-shot seeding process terminates (for docker-compose orchestration).
+            val exitCode = SpringApplication.exit(applicationContext)
+            exitProcess(exitCode)
         } catch (e: Exception) {
             logger.error("Failed to seed data / 데이터 시딩 실패", e)
             throw e
