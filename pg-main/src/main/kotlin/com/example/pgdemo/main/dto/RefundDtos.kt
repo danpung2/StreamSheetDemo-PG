@@ -10,7 +10,11 @@ data class RefundRequest(
     @field:NotNull(message = "refundAmount is required")
     @field:Positive(message = "refundAmount must be positive")
     val refundAmount: Long?,
-    val refundReason: String?
+    val refundReason: String?,
+    // If omitted, server defaults to REFUND_COMPLETED.
+    // 미지정 시 서버가 REFUND_COMPLETED로 처리합니다.
+    val status: RefundStatus? = null,
+    val failureReason: String? = null
 )
 
 data class RefundResponse(

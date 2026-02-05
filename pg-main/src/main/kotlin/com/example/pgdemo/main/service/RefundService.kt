@@ -32,14 +32,35 @@ class RefundService(
 
         val refundAmount = request.refundAmount ?: throw IllegalArgumentException("refundAmount is required")
         val now = Instant.now()
+        val status = request.status ?: RefundStatus.REFUND_COMPLETED
         val refund = RefundTransaction().apply {
             this.payment = payment
             this.refundAmount = refundAmount
             refundReason = request.refundReason
-            status = RefundStatus.REFUND_COMPLETED
+            this.status = status
             requestedAt = now
-            processedAt = now
-            completedAt = now
+            when (status) {
+                RefundStatus.REFUND_PENDING -> {
+                    processedAt = null
+                    completedAt = null
+                    failureReason = null
+                }
+                RefundStatus.REFUND_PROCESSING -> {
+                    processedAt = now
+                    completedAt = null
+                    failureReason = null
+                }
+                RefundStatus.REFUND_COMPLETED -> {
+                    processedAt = now
+                    completedAt = now
+                    failureReason = null
+                }
+                RefundStatus.REFUND_FAILED -> {
+                    processedAt = now
+                    completedAt = null
+                    failureReason = request.failureReason
+                }
+            }
         }
 
         return refundTransactionRepository.save(refund).toResponse()
