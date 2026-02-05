@@ -150,7 +150,7 @@ class TenantPermissionMatrix {
                 UserRole.VIEWER to setOf()
             ),
             TenantType.MERCHANT to mapOf(
-                UserRole.ADMIN to setOf(Permission.READ),
+                UserRole.ADMIN to setOf(Permission.READ, Permission.WRITE),
                 UserRole.MANAGER to setOf(),
                 UserRole.VIEWER to setOf()
             )

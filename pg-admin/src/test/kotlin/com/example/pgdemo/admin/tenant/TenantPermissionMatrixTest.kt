@@ -79,6 +79,20 @@ class TenantPermissionMatrixTest {
         )
     }
 
+    @Test
+    @DisplayName("가맹점(Merchant) 관리자(Admin)는 사용자 생성(WRITE) 권한을 가진다")
+    fun merchantAdminCanWriteUserResource() {
+        val merchantAdmin = tenantInfo(TenantType.MERCHANT, UserRole.ADMIN, UUID.randomUUID())
+
+        assertTrue(
+            matrix.hasPermission(
+                merchantAdmin,
+                TenantPermissionMatrix.Resource.USER,
+                TenantPermissionMatrix.Permission.WRITE
+            )
+        )
+    }
+
     private fun tenantInfo(tenantType: TenantType, role: UserRole, tenantId: UUID?): TenantInfo {
         return TenantInfo(
             userId = UUID.randomUUID(),
