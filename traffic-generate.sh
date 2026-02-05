@@ -13,7 +13,9 @@ PG Demo Traffic Generator
 
 설명 / Description:
   pg-main REST API를 대상으로 결제/환불 트래픽을 지속 생성합니다.
+  (본사/업체 생성은 하지 않습니다. 필요 시 seeder 또는 seed 스크립트를 먼저 실행하세요.)
   Continuously generates realistic payment/refund traffic against pg-main REST APIs.
+  (Does not create HQ/merchants; seed them first if needed.)
 
 사용법 / Usage:
   ./traffic-generate.sh [options]
@@ -27,9 +29,6 @@ PG Demo Traffic Generator
 
   --duration-seconds <sec>
       실행 시간(초). 0이면 무한 실행 / Duration seconds. 0 = run until Ctrl+C (default: 0)
-
-  --bootstrap-merchants <n>
-      시작 시 생성할 가맹점 수 / Merchants to create at start (default: 50)
 
   --merchant-pool <n>
       가맹점 풀 크기 / Merchant pool size (default: 50)
@@ -80,7 +79,6 @@ fi
 
 BASE_URL="http://localhost:8080"
 DURATION_SECONDS="0"
-BOOTSTRAP_MERCHANTS="50"
 MERCHANT_POOL="50"
 REFUND_RATE="0.08"
 SLEEP_MS="250"
@@ -105,11 +103,6 @@ while [[ $# -gt 0 ]]; do
     --duration-seconds)
       [[ $# -ge 2 ]] || die "--duration-seconds requires a value"
       DURATION_SECONDS="$2"
-      shift 2
-      ;;
-    --bootstrap-merchants)
-      [[ $# -ge 2 ]] || die "--bootstrap-merchants requires a value"
-      BOOTSTRAP_MERCHANTS="$2"
       shift 2
       ;;
     --merchant-pool)
@@ -154,8 +147,8 @@ done
 
 PY_ARGS=(
   "--base-url" "$BASE_URL"
+  "--mode" "generate"
   "--duration-seconds" "$DURATION_SECONDS"
-  "--bootstrap-merchants" "$BOOTSTRAP_MERCHANTS"
   "--merchant-pool" "$MERCHANT_POOL"
   "--refund-rate" "$REFUND_RATE"
   "--sleep-ms" "$SLEEP_MS"
