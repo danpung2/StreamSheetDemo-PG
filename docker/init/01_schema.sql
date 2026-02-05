@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS headquarters (
     updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 본사명 중복 금지(대소문자 무시) / Headquarters name must be unique (case-insensitive)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_headquarters_name_ci ON headquarters (lower(name));
+
 -- 업체(가맹점) 테이블 / Merchant table
 CREATE TABLE IF NOT EXISTS merchant (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -30,6 +33,11 @@ CREATE TABLE IF NOT EXISTS merchant (
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 동일 본사 내 가맹점명 중복 금지(대소문자 무시) / Merchant name must be unique within headquarters (case-insensitive)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_merchant_hq_name_ci
+    ON merchant (headquarters_id, lower(name))
+    WHERE headquarters_id IS NOT NULL;
 
 -- 결제 트랜잭션 테이블 / Payment transaction table
 CREATE TABLE IF NOT EXISTS payment_transaction (
@@ -90,6 +98,19 @@ CREATE TABLE IF NOT EXISTS refresh_token (
     device_info         VARCHAR(255)            -- Optional: device info
 );
 
+-- API Key 테이블 / API key table
+-- NOTE: plaintext API key is never stored. Only SHA-256 hash is stored.
+CREATE TABLE IF NOT EXISTS api_key (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_type     VARCHAR(20) NOT NULL,        -- OPERATOR, HEADQUARTERS, MERCHANT
+    tenant_id       UUID,                        -- headquarters.id or merchant.id (OPERATOR is null)
+    name            VARCHAR(100) NOT NULL,
+    key_hash        VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hex
+    key_prefix      VARCHAR(16) NOT NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at      TIMESTAMP
+);
+
 -- ============================================
 -- 인덱스 / Indexes
 -- ============================================
@@ -107,6 +128,8 @@ CREATE INDEX IF NOT EXISTS idx_admin_user_tenant ON admin_user(tenant_type, tena
 CREATE INDEX IF NOT EXISTS idx_refresh_token_user ON refresh_token(admin_user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_token_hash ON refresh_token(token_hash);
 
+CREATE INDEX IF NOT EXISTS idx_api_key_tenant ON api_key(tenant_type, tenant_id);
+
 -- ============================================
 -- 초기 데이터 (개발용) / Initial data (for development)
 -- ============================================
@@ -118,7 +141,7 @@ INSERT INTO admin_user (id, email, password_hash, name, tenant_type, role, statu
 VALUES (
     gen_random_uuid(),
     'admin@pgdemo.com',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMye.IaMJhbvBB3hfLu.d8VvZ3VQjX7oqBy',
+    '$2a$10$JR2W3Nx0p1kHMoRAXEF6ZObGjiCVz9Tz4F0doOqLJwuA/pSNtbJ3q',
     '시스템 관리자',
     'OPERATOR',
     'ADMIN',
