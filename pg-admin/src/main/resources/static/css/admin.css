@@ -71,9 +71,10 @@ a {
 }
 
 .topbar-meta {
-  display: grid;
-  grid-auto-flow: column;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  justify-content: flex-end;
 }
 
 .meta-card {
@@ -82,6 +83,24 @@ a {
   padding: 10px 14px;
   box-shadow: var(--shadow);
   min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.meta-card.action {
+  min-width: auto;
+}
+
+.meta-card.action form {
+  margin: 0;
+}
+
+.button.compact {
+  padding: 8px 12px;
 }
 
 .meta-label {
@@ -89,6 +108,11 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted-2);
+  display: block;
+}
+
+.meta-card strong {
+  display: block;
 }
 
 .sidebar {
@@ -460,6 +484,6 @@ th {
   }
 
   .topbar-meta {
-    grid-auto-flow: row;
+    justify-content: flex-start;
   }
 }

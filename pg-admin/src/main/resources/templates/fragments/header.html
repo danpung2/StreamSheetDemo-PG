@@ -19,6 +19,12 @@
           <span class="meta-label">Signed in</span>
           <strong th:text="${currentUser} ?: 'Admin User'">Admin User</strong>
         </div>
+        <div class="meta-card action">
+          <span class="meta-label">Session</span>
+          <form method="post" action="/logout">
+            <button class="button ghost compact" type="submit">Logout</button>
+          </form>
+        </div>
       </div>
     </header>
   </body>

@@ -1,6 +1,7 @@
 package com.example.pgdemo.admin.controller
 
 import com.example.pgdemo.admin.service.AuthService
+import com.example.pgdemo.common.domain.entity.AdminUser
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.MediaType
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import org.springframework.security.core.Authentication
 
 @Controller
 class LoginController(
@@ -78,6 +80,24 @@ class LoginController(
             })
             "redirect:/login"
         }
+    }
+
+    @PostMapping("/logout")
+    fun logout(authentication: Authentication?, response: HttpServletResponse): String {
+        val adminUser = authentication?.principal as? AdminUser
+        adminUser?.id?.let { authService.logout(it) }
+
+        response.addCookie(Cookie("accessToken", "").apply {
+            path = "/"
+            maxAge = 0
+            isHttpOnly = true
+        })
+        response.addCookie(Cookie("refreshToken", "").apply {
+            path = "/"
+            maxAge = 0
+            isHttpOnly = true
+        })
+        return "redirect:/login"
     }
     
     @GetMapping("/")
