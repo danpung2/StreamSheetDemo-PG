@@ -17,6 +17,16 @@
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
+필수 설정(기본값 없음; 누락 시 기동 실패)
+
+- `JWT_SECRET`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `SPRING_DATA_MONGODB_URI`
+
+위 값들은 환경 변수 또는 Docker secret(파일을 `/run/secrets`에 마운트하고, 파일명은 위 키와 동일)로 주입할 수 있습니다.
+
 동작 개요
 - Postgres/Mongo를 컨테이너로 실행
 - `pg-admin` seeder 프로필로 초기 데이터 시딩(1회 실행 후 종료)
@@ -43,6 +53,8 @@ docker compose로 스택을 올릴 때는 기본적으로 시딩이 자동으로
 ## 3) (옵션) 애플리케이션 직접 실행(pg-main + pg-admin)
 
 docker compose 대신 로컬에서 직접 실행하는 경우, 각 모듈을 일반 프로필로 실행합니다.
+
+참고: `pg-main` / `pg-admin`은 1)에서 나열한 설정값이 필요하며, 누락 시 기동에 실패합니다.
 
 ```bash
 ./gradlew :pg-main:bootRun

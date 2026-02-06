@@ -11,11 +11,23 @@ StreamSheet를 **실제 서비스 형태로** 붙여서,
 
 ## 빠른 실행(docker compose)
 
-상세한 절차/옵션은 `GUIDE.ko.md`에 있고, 여기서는 “바로 실행”만 제공합니다.
+상세한 절차/옵션은 [GUIDE.ko.md](GUIDE.ko.md)에 있고, 여기서는 “바로 실행”만 제공합니다.
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
 ```
+
+필수 설정(기본값 없음; 누락 시 기동 실패):
+
+- `JWT_SECRET`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `SPRING_DATA_MONGODB_URI`
+
+위 값들은 환경 변수 또는 Docker secret(파일을 `/run/secrets`에 마운트하고, 파일명은 위 키와 동일)로 주입할 수 있습니다.
+
+참고: 테스트(`./gradlew test`)는 Postgres/MongoDB가 실행 중이고 접근 가능해야 합니다(기본 설정은 `localhost` 기준).
 
 접속
 
@@ -113,4 +125,4 @@ streamsheet:
 
 ## 문서
 
-- 자세한 사용법: `GUIDE.ko.md`
+- 자세한 사용법: [GUIDE.ko.md](GUIDE.ko.md)

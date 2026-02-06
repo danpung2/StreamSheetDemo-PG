@@ -11,11 +11,23 @@ This demo includes a minimal PG domain:
 
 ## Quick Start (docker compose)
 
-For detailed steps and options, see `GUIDE.ko.md`. This section is the minimal “just run it”.
+For detailed steps and options, see [GUIDE.ko.md](GUIDE.ko.md). This section is the minimal “just run it”.
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
 ```
+
+Required configuration (no defaults; startup fails if missing):
+
+- `JWT_SECRET`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `SPRING_DATA_MONGODB_URI`
+
+You can inject these via environment variables or Docker secrets (mounted to `/run/secrets` with file names matching the keys above).
+
+Note: tests (`./gradlew test`) require Postgres and MongoDB to be running and reachable (default config uses `localhost`).
 
 Access
 
@@ -111,4 +123,4 @@ streamsheet:
 
 ## Docs
 
-- Detailed guide: `GUIDE.md`, `GUIDE.ko.md`
+- Detailed guide: [GUIDE.md](GUIDE.md), [GUIDE.ko.md](GUIDE.ko.md)

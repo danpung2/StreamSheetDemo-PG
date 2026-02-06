@@ -17,6 +17,16 @@ Bring up the development stack with a single command:
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
+Required configuration (no defaults; startup fails if missing)
+
+- `JWT_SECRET`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `SPRING_DATA_MONGODB_URI`
+
+You can inject these via environment variables or Docker secrets (mount to `/run/secrets` with file names matching the keys above).
+
 What it does
 
 - Runs Postgres and MongoDB in containers
@@ -46,6 +56,8 @@ Notes
 ## 3) (Optional) Run Applications Manually (pg-main + pg-admin)
 
 If you prefer running without docker compose, start each module with the normal profile.
+
+Note: `pg-main` / `pg-admin` require the configuration values listed in step 1). If they are missing, the application will fail at startup.
 
 ```bash
 ./gradlew :pg-main:bootRun
