@@ -42,6 +42,8 @@ bin/
 # Environment Variables
 .env
 .env.local
+docker/.env
+docker/.env.*
 local.properties
 
 # Logs
