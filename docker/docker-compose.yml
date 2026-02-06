@@ -12,7 +12,7 @@ services:
     environment:
       POSTGRES_DB: pgdemo
       POSTGRES_USER: pgdemo
-      POSTGRES_PASSWORD: pgdemo
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
@@ -74,10 +74,11 @@ services:
     volumes:
       - artifacts:/artifacts:ro
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
-      SPRING_DATASOURCE_USERNAME: pgdemo
-      SPRING_DATASOURCE_PASSWORD: pgdemo
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI:?SPRING_DATA_MONGODB_URI is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     command:
       - java
       - -jar
@@ -96,10 +97,10 @@ services:
     volumes:
       - artifacts:/artifacts:ro
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
-      SPRING_DATASOURCE_USERNAME: pgdemo
-      SPRING_DATASOURCE_PASSWORD: pgdemo
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI:?SPRING_DATA_MONGODB_URI is required}
     command:
       - java
       - -jar
@@ -117,10 +118,11 @@ services:
     volumes:
       - artifacts:/artifacts:ro
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pgdemo
-      SPRING_DATASOURCE_USERNAME: pgdemo
-      SPRING_DATASOURCE_PASSWORD: pgdemo
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/pgdemo
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI:?SPRING_DATA_MONGODB_URI is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       PG_MAIN_BASE_URL: http://pg-main:8080
     command:
       - java

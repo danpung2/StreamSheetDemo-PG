@@ -29,8 +29,8 @@ dependencies {
 
     // StreamSheet
     // Excel export with StreamSheet
-    implementation("io.github.danpung2:streamsheet-spring-boot-starter:0.0.1-SNAPSHOT")
-    implementation("io.github.danpung2:streamsheet-mongodb:0.0.1-SNAPSHOT")
+    implementation("io.github.danpung2:streamsheet-spring-boot-starter:1.0.0")
+    implementation("io.github.danpung2:streamsheet-mongodb:1.0.0")
     
     // JWT (JJWT)
     // JWT 토큰 처리 / JWT token handling

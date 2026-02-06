@@ -42,7 +42,7 @@ dependencies {
     
     // StreamSheet (JPA, MongoDB 지원)
     // StreamSheet for Excel export
-    api("io.github.danpung2:streamsheet-spring-boot-starter:0.0.1-SNAPSHOT")
-    api("io.github.danpung2:streamsheet-jpa:0.0.1-SNAPSHOT")
-    api("io.github.danpung2:streamsheet-mongodb:0.0.1-SNAPSHOT")
+    api("io.github.danpung2:streamsheet-spring-boot-starter:1.0.0")
+    api("io.github.danpung2:streamsheet-jpa:1.0.0")
+    api("io.github.danpung2:streamsheet-mongodb:1.0.0")
 }

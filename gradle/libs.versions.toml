@@ -7,7 +7,7 @@ kotlin = "1.9.22"
 postgresql = "42.7.1"
 mongodb = "5.0.0"
 jjwt = "0.12.3"
-streamsheet = "0.0.1-SNAPSHOT"
+streamsheet = "1.0.0"
 
 [libraries]
 streamsheet-starter = { module = "io.github.danpung2:streamsheet-spring-boot-starter", version.ref = "streamsheet" }

@@ -4,13 +4,18 @@
 spring:
   application:
     name: pg-admin
+
+  # Allow injecting config via Docker secrets (config tree).
+  # In containers, you can mount secrets to /run/secrets and use file names as property keys.
+  config:
+    import: "optional:configtree:/run/secrets/"
   
   # 데이터베이스 설정
   # Database configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/pgdemo
-    username: pgdemo
-    password: pgdemo
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -32,7 +37,7 @@ spring:
   # MongoDB configuration
   data:
     mongodb:
-      uri: mongodb://localhost:27017/pgdemo
+      uri: ${SPRING_DATA_MONGODB_URI}
   
   # Thymeleaf 설정
   # Thymeleaf configuration
@@ -53,11 +58,9 @@ pg-main:
 
 # JWT 설정
 # JWT configuration
-# NOTE: 실제 운영 환경에서는 환경 변수로 관리하세요
-# NOTE: In production, manage these via environment variables
 security:
   jwt:
-    secret: ${JWT_SECRET:your-256-bit-secret-key-here-for-development-only-replace-in-prod}
+    secret: ${JWT_SECRET}
     access-token-expiry: 15m
     refresh-token-expiry: 7d
   password:

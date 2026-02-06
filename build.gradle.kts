@@ -15,7 +15,6 @@ allprojects {
     version = "0.0.1-SNAPSHOT"
 
     repositories {
-        mavenLocal()  // StreamSheet 로컬 Maven 저장소 우선 / Local Maven for StreamSheet
         mavenCentral()
     }
 }
