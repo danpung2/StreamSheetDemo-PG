@@ -102,6 +102,6 @@ class LoginController(
     
     @GetMapping("/")
     fun root(): String {
-        return "redirect:/admin/dashboard"
+        return "redirect:/demo"
     }
 }

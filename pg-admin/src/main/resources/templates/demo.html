@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Demo'">
+  <section class="page">
+    <div th:replace="fragments/header :: header('Demo')"></div>
+    <div class="shell">
+      <div th:replace="fragments/sidebar :: sidebar('dashboard')"></div>
+      <main class="main">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Start Demo</h2>
+          </div>
+          <p class="caption">
+            This page issues a short-lived demo session without asking for a password.
+          </p>
+
+          <div th:if="${demoEnabled}">
+            <form method="post" action="/api/demo/start">
+              <button class="button primary" type="submit">Start Demo</button>
+            </form>
+          </div>
+
+          <div th:if="${!demoEnabled}">
+            <p class="caption">Demo mode is disabled.</p>
+            <a class="button ghost" href="/login">Go to login</a>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+</html>

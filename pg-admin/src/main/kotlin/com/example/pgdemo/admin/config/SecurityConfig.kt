@@ -1,5 +1,6 @@
 package com.example.pgdemo.admin.config
 
+import com.example.pgdemo.admin.security.DemoProperties
 import com.example.pgdemo.admin.security.JwtAuthenticationFilter
 import com.example.pgdemo.admin.security.JwtProperties
 import com.example.pgdemo.admin.security.LoginProperties
@@ -35,7 +36,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableConfigurationProperties(JwtProperties::class, LoginProperties::class, RateLimitProperties::class)
+@EnableConfigurationProperties(JwtProperties::class, LoginProperties::class, RateLimitProperties::class, DemoProperties::class)
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val tenantAuthorizationFilter: TenantAuthorizationFilter,
@@ -60,8 +61,10 @@ class SecurityConfig(
                 it.requestMatchers(
                     "/api/auth/login",
                     "/api/auth/refresh",
+                    "/api/demo/**",
                     "/actuator/health",
                     "/login",
+                    "/demo",
                     "/",
                     "/css/**",
                     "/js/**",
