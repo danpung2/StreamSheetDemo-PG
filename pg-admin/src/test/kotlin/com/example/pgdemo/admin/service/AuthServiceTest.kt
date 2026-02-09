@@ -2,6 +2,7 @@ package com.example.pgdemo.admin.service
 
 import com.example.pgdemo.admin.security.JwtProperties
 import com.example.pgdemo.admin.security.JwtTokenProvider
+import com.example.pgdemo.admin.security.LoginProperties
 import com.example.pgdemo.common.domain.entity.AdminUser
 import com.example.pgdemo.common.domain.entity.RefreshToken
 import com.example.pgdemo.common.domain.`enum`.TenantType
@@ -41,6 +42,7 @@ class AuthServiceTest {
     private lateinit var passwordEncoder: PasswordEncoder
 
     private lateinit var jwtProperties: JwtProperties
+    private lateinit var loginProperties: LoginProperties
     private lateinit var jwtTokenProvider: JwtTokenProvider
     private lateinit var authService: AuthService
 
@@ -51,12 +53,17 @@ class AuthServiceTest {
             accessTokenExpiry = Duration.ofMinutes(15)
             refreshTokenExpiry = Duration.ofDays(7)
         }
+        loginProperties = LoginProperties().apply {
+            maxFailedAttempts = 5
+            lockDuration = Duration.ofMinutes(30)
+        }
         jwtTokenProvider = JwtTokenProvider(jwtProperties)
         authService = AuthService(
             adminUserRepository,
             refreshTokenRepository,
             jwtTokenProvider,
             jwtProperties,
+            loginProperties,
             passwordEncoder
         )
     }

@@ -2,6 +2,7 @@ package com.example.pgdemo.admin.config
 
 import com.example.pgdemo.admin.security.JwtAuthenticationFilter
 import com.example.pgdemo.admin.security.JwtProperties
+import com.example.pgdemo.admin.security.LoginProperties
 import com.example.pgdemo.admin.tenant.TenantAuthorizationFilter
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
@@ -26,7 +27,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableConfigurationProperties(JwtProperties::class)
+@EnableConfigurationProperties(JwtProperties::class, LoginProperties::class)
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val tenantAuthorizationFilter: TenantAuthorizationFilter
