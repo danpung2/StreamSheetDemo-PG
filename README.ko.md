@@ -12,6 +12,16 @@ StreamSheet를 **실제 서비스 형태로** 붙여서,
 - 결제/환불 트랜잭션 라이프사이클(요청→진행→완료/실패/취소)
 - 트랜잭션(Postgres) → Export 뷰(Mongo) 동기화 → StreamSheet Export
 
+## 🚀 라이브 데모 (Live Demo)
+
+아래 주소에서 실제 배포된 어드민 포털을 체험해 보실 수 있습니다
+
+### 데모 이용 방법:
+1. [데모 시작 페이지](https://pg-demo.chunsamsik.com/demo)에 접속합니다.
+2. **"Start Demo"** 버튼을 클릭합니다.
+3. **본사 관리자(Headquarters Manager)** 권한으로 자동 로그인됩니다.
+4. **"Exports"** 메뉴로 이동하여 StreamSheet가 제공하는 엑셀 내보내기 기능을 직접 체험해 보세요.
+
 ## 빠른 실행(docker compose)
 
 상세한 절차/옵션은 [GUIDE.ko.md](GUIDE.ko.md)에 있고, 여기서는 “바로 실행”만 제공합니다.

@@ -12,6 +12,16 @@ This demo includes a minimal PG domain:
 - Transaction lifecycle for payments/refunds (Requested → Processed → Completed/Failed/Cancelled)
 - Postgres (transactions) → Mongo (export view) sync → StreamSheet export
 
+## 🚀 Live Demo
+
+You can try the live admin portal here
+
+### How to use the Demo:
+1. Go to the [Demo Start Page](https://pg-demo.chunsamsik.com/demo).
+2. Click **"Start Demo"**.
+3. You will be automatically logged in as a **Headquarters Manager**.
+4. Navigate to the **"Exports"** tab to try out the Excel export functionality powered by StreamSheet.
+
 ## Quick Start (docker compose)
 
 For detailed steps and options, see [GUIDE.ko.md](GUIDE.ko.md). This section is the minimal “just run it”.
