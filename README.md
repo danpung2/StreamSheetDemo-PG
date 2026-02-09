@@ -1,5 +1,8 @@
 # PG Demo (StreamSheet)
 
+> **This project is for demo/sample purposes only.**
+> All data (headquarters, merchants, transactions, etc.) is **fictional test data** and has no relation to any real services or businesses.
+
 PG Demo is a **realistic service-style** sample that shows how to integrate StreamSheet to export
 large-scale payment/refund transactions to **streaming Excel (.xlsx)**.
 
@@ -32,8 +35,11 @@ Note: tests (`./gradlew test`) require Postgres and MongoDB to be running and re
 Access
 
 - Admin UI (pg-admin): `http://localhost:8081`
-- Login: `http://localhost:8081/login`
-  - `admin@pgdemo.com` / `admin123!`
+
+Demo access (no password in docs)
+
+- If demo mode is enabled, open: `http://localhost:8081/demo` and click `Start Demo`
+- If you run the seeder locally, the demo user is `hq_manager@pgdemo.com` and the password is whatever you set via `SEEDER_PASSWORD_HQ_MANAGER`
 
 Export
 

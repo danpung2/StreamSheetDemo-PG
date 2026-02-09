@@ -43,8 +43,13 @@ bin/
 .env
 .env.local
 docker/.env
-docker/.env.*
+docker/.env.local
+!docker/.env.example
 local.properties
+
+# Internal documentation (not for public)
+ONBOARDING.ko.md
+ONBOARDING.md
 
 # Logs
 logs/

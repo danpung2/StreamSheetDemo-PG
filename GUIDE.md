@@ -1,5 +1,8 @@
 # GUIDE (Assuming a Production-Like Environment)
 
+> **This project is for demo/sample purposes only.**
+> All data (headquarters, merchants, transactions, etc.) is **fictional test data** and has no relation to any real services or businesses.
+
 This document explains how to prepare StreamSheet test data in a **production-like setup**.
 
 ## Goal
@@ -105,23 +108,17 @@ Open the pg-admin login page:
 
 - URL: `http://localhost:8081/login`
 
-Default login accounts (docker initial data + DataSeeder adjustments)
+Demo access (no password in docs)
 
-| Category | Role | Email | Password | Note |
-| --- | --- | --- | --- | --- |
-| Operator (OPERATOR) | Admin (ADMIN) | `admin@pgdemo.com` | `admin123!` | Docker initial data |
-| Operator (OPERATOR) | Manager (MANAGER) | - | - | Not provided by default (create via provisioning) |
-| Operator (OPERATOR) | Viewer (VIEWER) | - | - | Not provided by default (provisioning API not supported yet) |
-| Headquarters (HEADQUARTERS) | Admin (ADMIN) | `hq_admin@pgdemo.com` | `password123!` | Ensured by DataSeeder |
-| Headquarters (HEADQUARTERS) | Manager (MANAGER) | - | - | Not provided by default (create via provisioning) |
-| Headquarters (HEADQUARTERS) | Viewer (VIEWER) | - | - | Not provided by default (provisioning API not supported yet) |
-| Merchant (MERCHANT) | Admin (ADMIN) | `merchant_admin@pgdemo.com` | `password123!` | Ensured by DataSeeder |
-| Merchant (MERCHANT) | Manager (MANAGER) | - | - | Not provided by default (create via provisioning) |
-| Merchant (MERCHANT) | Viewer (VIEWER) | - | - | Not provided by default (provisioning API not supported yet) |
+1) If demo mode is enabled, open `http://localhost:8081/demo` and click `Start Demo`.
+
+2) If you run the seeder locally and want to log in directly:
+   - Email: `hq_manager@pgdemo.com`
+   - Password: the value you set in `SEEDER_PASSWORD_HQ_MANAGER`
 
 Notes
 
-- These accounts are created/adjusted during step 2) seeding (even if they already exist, password/status are normalized).
+- This account is created/adjusted during the DataSeeder step.
 
 ### 5.2 Request and Download Export (UI)
 

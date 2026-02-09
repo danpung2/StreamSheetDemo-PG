@@ -1,5 +1,8 @@
 # PG Demo (StreamSheet)
 
+> **이 프로젝트는 데모/샘플 목적으로 제작되었습니다.**
+> 모든 데이터(본사, 가맹점, 거래 내역 등)는 **가상의 테스트 데이터**이며, 실제 서비스나 업체와 무관합니다.
+
 StreamSheet를 **실제 서비스 형태로** 붙여서,
 대용량 거래 데이터(결제/환불)를 **스트리밍 방식으로 엑셀(.xlsx)로 내보내는** PG 데모 프로젝트입니다.
 
@@ -32,8 +35,11 @@ docker compose -f docker/docker-compose.yml up -d --build
 접속
 
 - 관리자 페이지(pg-admin): `http://localhost:8081`
-- 로그인: `http://localhost:8081/login`
-  - `admin@pgdemo.com` / `admin123!`
+
+데모 접속(문서에 비밀번호 미노출)
+
+- 데모 모드가 활성화된 경우: `http://localhost:8081/demo` 접속 후 `Start Demo` 클릭
+- 로컬에서 seeder를 실행하는 경우: 데모 계정은 `hq_manager@pgdemo.com`이고, 비밀번호는 `SEEDER_PASSWORD_HQ_MANAGER`에 설정한 값입니다.
 
 Export 확인
 
