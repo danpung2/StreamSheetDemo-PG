@@ -71,6 +71,13 @@ security:
   login:
     max-failed-attempts: 5
     lock-duration: 30m
+  # Rate Limiting 설정
+  # Rate Limiting configuration
+  rate-limit:
+    enabled: true
+    max-attempts: 10        # 시간 윈도우 내 최대 요청 수 / Max requests within time window
+    window-duration: 1m     # 시간 윈도우 기간 / Time window duration
+    block-duration: 5m      # 제한 초과 시 차단 기간 / Block duration when limit exceeded
 
 # StreamSheet 설정
 # StreamSheet configuration

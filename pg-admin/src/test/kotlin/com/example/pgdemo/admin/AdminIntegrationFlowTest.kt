@@ -43,7 +43,8 @@ import org.springframework.security.crypto.password.PasswordEncoder
         "spring.datasource.username=pgdemo",
         "spring.datasource.password=pgdemo",
         "spring.jpa.hibernate.ddl-auto=update",
-        "spring.data.mongodb.uri=mongodb://localhost:27017/pgdemo"
+        "spring.data.mongodb.uri=mongodb://localhost:27017/pgdemo",
+        "security.jwt.secret=test-jwt-secret-for-integration-tests-minimum-32-bytes"
     ]
 )
 @Import(AdminIntegrationFlowTest.TestJpaConfig::class)
