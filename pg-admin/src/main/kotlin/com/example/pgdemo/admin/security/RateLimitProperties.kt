@@ -12,6 +12,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  */
 @ConfigurationProperties(prefix = "security.rate-limit")
 class RateLimitProperties {
+    enum class Bucket {
+        LOGIN,
+        DEMO,
+        EXPORT
+    }
+
     /**
      * Whether rate limiting is enabled.
      * Rate Limiting 활성화 여부.
@@ -19,20 +25,47 @@ class RateLimitProperties {
     var enabled: Boolean = true
 
     /**
-     * Maximum number of login attempts allowed within the time window.
-     * 시간 윈도우 내 허용되는 최대 로그인 시도 횟수.
+     * Default values for login-related endpoints.
      */
     var maxAttempts: Int = 10
-
-    /**
-     * Time window duration for rate limiting.
-     * Rate Limiting 시간 윈도우 기간.
-     */
     var windowDuration: Duration = Duration.ofMinutes(1)
+    var blockDuration: Duration = Duration.ofMinutes(5)
 
     /**
-     * Duration to block requests after rate limit is exceeded.
-     * Rate Limit 초과 후 요청을 차단하는 기간.
+     * Limits for public demo issuance endpoint.
      */
-    var blockDuration: Duration = Duration.ofMinutes(5)
+    var demoMaxAttempts: Int = 5
+    var demoWindowDuration: Duration = Duration.ofMinutes(1)
+    var demoBlockDuration: Duration = Duration.ofMinutes(10)
+
+    /**
+     * Limits for export endpoints (resource-heavy).
+     */
+    var exportMaxAttempts: Int = 10
+    var exportWindowDuration: Duration = Duration.ofMinutes(1)
+    var exportBlockDuration: Duration = Duration.ofMinutes(2)
+
+    fun getMaxAttempts(bucket: Bucket): Int {
+        return when (bucket) {
+            Bucket.LOGIN -> maxAttempts
+            Bucket.DEMO -> demoMaxAttempts
+            Bucket.EXPORT -> exportMaxAttempts
+        }
+    }
+
+    fun getWindowDuration(bucket: Bucket): Duration {
+        return when (bucket) {
+            Bucket.LOGIN -> windowDuration
+            Bucket.DEMO -> demoWindowDuration
+            Bucket.EXPORT -> exportWindowDuration
+        }
+    }
+
+    fun getBlockDuration(bucket: Bucket): Duration {
+        return when (bucket) {
+            Bucket.LOGIN -> blockDuration
+            Bucket.DEMO -> demoBlockDuration
+            Bucket.EXPORT -> exportBlockDuration
+        }
+    }
 }

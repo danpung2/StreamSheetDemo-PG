@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import com.example.pgdemo.admin.security.RequestedByResolver
+import java.time.temporal.ChronoUnit
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
 
 @Controller
 @RequestMapping("/admin/exports/payments/jobs")
@@ -29,6 +32,7 @@ class PaymentExportJobController(
 ) {
 
     private val displayZone = ZoneId.systemDefault()
+    private val demoAuthority = SimpleGrantedAuthority("ROLE_DEMO")
     data class CreateJobRequest(
         val fromUtc: Instant,
         val toUtc: Instant,
@@ -53,6 +57,12 @@ class PaymentExportJobController(
     ): String {
         val parsedFromUtc = LocalDateTime.parse(fromUtc).atZone(displayZone).toInstant()
         val parsedToUtc = LocalDateTime.parse(toUtc).atZone(displayZone).toInstant()
+
+        if (isDemoSession()) {
+            val maxDays = 7L
+            val days = ChronoUnit.DAYS.between(parsedFromUtc, parsedToUtc)
+            require(days in 0..maxDays) { "Demo export job is limited to $maxDays days" }
+        }
         val parsedHeadquartersId = headquartersId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
         val parsedMerchantId = merchantId?.takeIf { it.isNotBlank() }?.let(UUID::fromString)
         val requestedBy = RequestedByResolver.currentLabel()
@@ -73,6 +83,11 @@ class PaymentExportJobController(
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseBody
     fun createJobApi(@RequestBody request: CreateJobRequest): CreateJobResponse {
+        if (isDemoSession()) {
+            val maxDays = 7L
+            val days = ChronoUnit.DAYS.between(request.fromUtc, request.toUtc)
+            require(days in 0..maxDays) { "Demo export job is limited to $maxDays days" }
+        }
         val requestedBy = RequestedByResolver.currentLabel()
         val job = jobService.createJob(
             PaymentExportJobService.CreateRequest(
@@ -86,6 +101,11 @@ class PaymentExportJobController(
             requestedBy = requestedBy
         )
         return CreateJobResponse(jobId = job.jobId)
+    }
+
+    private fun isDemoSession(): Boolean {
+        val auth = SecurityContextHolder.getContext().authentication ?: return false
+        return auth.authorities.contains(demoAuthority)
     }
 
     @GetMapping(produces = [MediaType.APPLICATION_JSON_VALUE])

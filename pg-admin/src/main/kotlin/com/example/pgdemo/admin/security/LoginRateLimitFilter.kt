@@ -23,12 +23,15 @@ class LoginRateLimitFilter(
     private val objectMapper: ObjectMapper
 ) : OncePerRequestFilter() {
 
-    private val logger = LoggerFactory.getLogger(LoginRateLimitFilter::class.java)
+    private val log = LoggerFactory.getLogger(LoginRateLimitFilter::class.java)
 
     companion object {
-        private val RATE_LIMITED_PATHS = setOf(
-            "/api/auth/login",
-            "/api/auth/refresh"
+        private val BUCKETED_PATHS = listOf(
+            RateLimitProperties.Bucket.DEMO to "/api/demo/start",
+            RateLimitProperties.Bucket.LOGIN to "/api/auth/login",
+            RateLimitProperties.Bucket.LOGIN to "/api/auth/refresh",
+            RateLimitProperties.Bucket.EXPORT to "/admin/exports/",
+            RateLimitProperties.Bucket.EXPORT to "/admin/exports"
         )
     }
 
@@ -39,9 +42,8 @@ class LoginRateLimitFilter(
     ) {
         val path = request.requestURI
 
-        // Only apply rate limiting to login-related endpoints
-        // 로그인 관련 엔드포인트에만 Rate Limiting 적용
-        if (!shouldRateLimit(path)) {
+        val bucket = resolveBucket(path)
+        if (bucket == null) {
             filterChain.doFilter(request, response)
             return
         }
@@ -49,25 +51,25 @@ class LoginRateLimitFilter(
         val clientIp = getClientIp(request)
 
         // Check if IP is allowed / IP 허용 여부 확인
-        if (!rateLimiter.isAllowed(clientIp)) {
-            handleRateLimitExceeded(response, clientIp)
+        if (!rateLimiter.isAllowed(bucket, clientIp)) {
+            handleRateLimitExceeded(response, bucket, clientIp)
             return
         }
 
         // Record the attempt / 시도 기록
-        if (!rateLimiter.recordAttempt(clientIp)) {
-            handleRateLimitExceeded(response, clientIp)
+        if (!rateLimiter.recordAttempt(bucket, clientIp)) {
+            handleRateLimitExceeded(response, bucket, clientIp)
             return
         }
 
         // Add rate limit headers / Rate Limit 헤더 추가
-        addRateLimitHeaders(response, clientIp)
+        addRateLimitHeaders(response, bucket, clientIp)
 
         filterChain.doFilter(request, response)
     }
 
-    private fun shouldRateLimit(path: String): Boolean {
-        return RATE_LIMITED_PATHS.any { path.startsWith(it) }
+    private fun resolveBucket(path: String): RateLimitProperties.Bucket? {
+        return BUCKETED_PATHS.firstOrNull { (_, prefix) -> path.startsWith(prefix) }?.first
     }
 
     /**
@@ -95,10 +97,14 @@ class LoginRateLimitFilter(
         return request.remoteAddr ?: "unknown"
     }
 
-    private fun handleRateLimitExceeded(response: HttpServletResponse, clientIp: String) {
-        logger.warn("Rate limit exceeded for IP: $clientIp")
+    private fun handleRateLimitExceeded(
+        response: HttpServletResponse,
+        bucket: RateLimitProperties.Bucket,
+        clientIp: String
+    ) {
+        log.warn("Rate limit exceeded for {} IP: {}", bucket, clientIp)
 
-        val blockExpiry = rateLimiter.getBlockExpiry(clientIp)
+        val blockExpiry = rateLimiter.getBlockExpiry(bucket, clientIp)
         val retryAfterSeconds = if (blockExpiry != null) {
             java.time.Duration.between(java.time.Instant.now(), blockExpiry).seconds.coerceAtLeast(1)
         } else {
@@ -113,14 +119,19 @@ class LoginRateLimitFilter(
         val errorResponse = mapOf(
             "error" to "Too Many Requests",
             "message" to "Rate limit exceeded. Please try again later.",
+            "bucket" to bucket.name,
             "retryAfterSeconds" to retryAfterSeconds
         )
 
         response.writer.write(objectMapper.writeValueAsString(errorResponse))
     }
 
-    private fun addRateLimitHeaders(response: HttpServletResponse, clientIp: String) {
-        val remaining = rateLimiter.getRemainingAttempts(clientIp)
+    private fun addRateLimitHeaders(
+        response: HttpServletResponse,
+        bucket: RateLimitProperties.Bucket,
+        clientIp: String
+    ) {
+        val remaining = rateLimiter.getRemainingAttempts(bucket, clientIp)
         response.setHeader("X-RateLimit-Remaining", remaining.toString())
     }
 }

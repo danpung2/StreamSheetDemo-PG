@@ -24,13 +24,13 @@ class LoginRateLimiter(
      * Stores login attempt timestamps for each IP address.
      * 각 IP 주소별 로그인 시도 타임스탬프를 저장합니다.
      */
-    private val attemptsByIp = ConcurrentHashMap<String, CopyOnWriteArrayList<Instant>>()
+    private val attemptsByKey = ConcurrentHashMap<String, CopyOnWriteArrayList<Instant>>()
 
     /**
      * Stores block expiration time for each IP address.
      * 각 IP 주소별 차단 만료 시간을 저장합니다.
      */
-    private val blockedIps = ConcurrentHashMap<String, Instant>()
+    private val blockedKeys = ConcurrentHashMap<String, Instant>()
 
     /**
      * Check if the IP is allowed to make a login attempt.
@@ -39,22 +39,24 @@ class LoginRateLimiter(
      * @param ipAddress the client IP address / 클라이언트 IP 주소
      * @return true if allowed, false if rate limited / 허용되면 true, 제한되면 false
      */
-    fun isAllowed(ipAddress: String): Boolean {
+    fun isAllowed(bucket: RateLimitProperties.Bucket, ipAddress: String): Boolean {
         if (!rateLimitProperties.enabled) {
             return true
         }
 
         val now = Instant.now()
 
+        val key = key(bucket, ipAddress)
+
         // Check if IP is blocked / IP 차단 여부 확인
-        val blockExpiry = blockedIps[ipAddress]
+        val blockExpiry = blockedKeys[key]
         if (blockExpiry != null) {
             if (now.isBefore(blockExpiry)) {
-                logger.debug("IP {} is blocked until {}", ipAddress, blockExpiry)
+                logger.debug("{}:{} is blocked until {}", bucket, ipAddress, blockExpiry)
                 return false
             } else {
                 // Block expired, remove it / 차단 만료, 제거
-                blockedIps.remove(ipAddress)
+                blockedKeys.remove(key)
             }
         }
 
@@ -69,27 +71,34 @@ class LoginRateLimiter(
      * @return true if within limit, false if limit exceeded (IP will be blocked)
      *         제한 내이면 true, 제한 초과 시 false (IP 차단됨)
      */
-    fun recordAttempt(ipAddress: String): Boolean {
+    fun recordAttempt(bucket: RateLimitProperties.Bucket, ipAddress: String): Boolean {
         if (!rateLimitProperties.enabled) {
             return true
         }
 
         val now = Instant.now()
-        val windowStart = now.minus(rateLimitProperties.windowDuration)
+        val windowDuration = rateLimitProperties.getWindowDuration(bucket)
+        val windowStart = now.minus(windowDuration)
+
+        val maxAttempts = rateLimitProperties.getMaxAttempts(bucket)
+        val blockDuration = rateLimitProperties.getBlockDuration(bucket)
+
+        val key = key(bucket, ipAddress)
 
         // Get or create attempt list for this IP / IP에 대한 시도 목록 가져오기 또는 생성
-        val attempts = attemptsByIp.computeIfAbsent(ipAddress) { CopyOnWriteArrayList() }
+        val attempts = attemptsByKey.computeIfAbsent(key) { CopyOnWriteArrayList() }
 
         // Remove old attempts outside the window / 윈도우 외부의 오래된 시도 제거
         attempts.removeIf { it.isBefore(windowStart) }
 
         // Check if limit exceeded / 제한 초과 여부 확인
-        if (attempts.size >= rateLimitProperties.maxAttempts) {
+        if (attempts.size >= maxAttempts) {
             // Block the IP / IP 차단
-            val blockUntil = now.plus(rateLimitProperties.blockDuration)
-            blockedIps[ipAddress] = blockUntil
+            val blockUntil = now.plus(blockDuration)
+            blockedKeys[key] = blockUntil
             logger.warn(
-                "Rate limit exceeded for IP {}. Blocked until {}. Attempts in window: {}",
+                "Rate limit exceeded for {}:{}. Blocked until {}. Attempts in window: {}",
+                bucket,
                 ipAddress,
                 blockUntil,
                 attempts.size
@@ -114,13 +123,22 @@ class LoginRateLimiter(
             return Int.MAX_VALUE
         }
 
-        val now = Instant.now()
-        val windowStart = now.minus(rateLimitProperties.windowDuration)
+        return getRemainingAttempts(RateLimitProperties.Bucket.LOGIN, ipAddress)
+    }
 
-        val attempts = attemptsByIp[ipAddress] ?: return rateLimitProperties.maxAttempts
+    fun getRemainingAttempts(bucket: RateLimitProperties.Bucket, ipAddress: String): Int {
+        if (!rateLimitProperties.enabled) {
+            return Int.MAX_VALUE
+        }
+
+        val now = Instant.now()
+        val windowStart = now.minus(rateLimitProperties.getWindowDuration(bucket))
+
+        val key = key(bucket, ipAddress)
+        val attempts = attemptsByKey[key] ?: return rateLimitProperties.getMaxAttempts(bucket)
         val recentAttempts = attempts.count { it.isAfter(windowStart) }
 
-        return maxOf(0, rateLimitProperties.maxAttempts - recentAttempts)
+        return maxOf(0, rateLimitProperties.getMaxAttempts(bucket) - recentAttempts)
     }
 
     /**
@@ -130,8 +148,8 @@ class LoginRateLimiter(
      * @param ipAddress the client IP address / 클라이언트 IP 주소
      * @return block expiry time, or null if not blocked / 차단 만료 시간, 차단되지 않았으면 null
      */
-    fun getBlockExpiry(ipAddress: String): Instant? {
-        val blockExpiry = blockedIps[ipAddress] ?: return null
+    fun getBlockExpiry(bucket: RateLimitProperties.Bucket, ipAddress: String): Instant? {
+        val blockExpiry = blockedKeys[key(bucket, ipAddress)] ?: return null
         return if (Instant.now().isBefore(blockExpiry)) blockExpiry else null
     }
 
@@ -145,25 +163,34 @@ class LoginRateLimiter(
     @Scheduled(fixedRate = 300_000) // 5 minutes
     fun cleanup() {
         val now = Instant.now()
-        val windowStart = now.minus(rateLimitProperties.windowDuration)
+        val maxWindow = listOf(
+            rateLimitProperties.windowDuration,
+            rateLimitProperties.demoWindowDuration,
+            rateLimitProperties.exportWindowDuration
+        ).maxOrNull() ?: rateLimitProperties.windowDuration
+        val windowStart = now.minus(maxWindow)
 
         // Cleanup expired blocks / 만료된 차단 정리
-        blockedIps.entries.removeIf { it.value.isBefore(now) }
+        blockedKeys.entries.removeIf { it.value.isBefore(now) }
 
         // Cleanup old attempts / 오래된 시도 정리
-        attemptsByIp.forEach { (_, attempts) ->
+        attemptsByKey.forEach { (_, attempts) ->
             attempts.removeIf { it.isBefore(windowStart) }
         }
 
         // Remove empty entries / 빈 항목 제거
-        attemptsByIp.entries.removeIf { it.value.isEmpty() }
+        attemptsByKey.entries.removeIf { it.value.isEmpty() }
 
-        if (attemptsByIp.isNotEmpty() || blockedIps.isNotEmpty()) {
+        if (attemptsByKey.isNotEmpty() || blockedKeys.isNotEmpty()) {
             logger.debug(
-                "Rate limiter cleanup: {} IPs tracked, {} IPs blocked",
-                attemptsByIp.size,
-                blockedIps.size
+                "Rate limiter cleanup: {} keys tracked, {} keys blocked",
+                attemptsByKey.size,
+                blockedKeys.size
             )
         }
+    }
+
+    private fun key(bucket: RateLimitProperties.Bucket, ipAddress: String): String {
+        return "${bucket.name}:$ipAddress"
     }
 }

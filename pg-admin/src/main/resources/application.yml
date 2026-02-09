@@ -75,9 +75,27 @@ security:
   # Rate Limiting configuration
   rate-limit:
     enabled: true
+    # Login/refresh endpoints
     max-attempts: 10        # 시간 윈도우 내 최대 요청 수 / Max requests within time window
     window-duration: 1m     # 시간 윈도우 기간 / Time window duration
     block-duration: 5m      # 제한 초과 시 차단 기간 / Block duration when limit exceeded
+
+    # Demo issuance endpoint (/api/demo/start)
+    demo-max-attempts: 5
+    demo-window-duration: 1m
+    demo-block-duration: 10m
+
+    # Export endpoints (/admin/exports/**)
+    export-max-attempts: 10
+    export-window-duration: 1m
+    export-block-duration: 2m
+
+  demo:
+    enabled: false
+    user-email: hq_manager@pgdemo.com
+    access-token-expiry: 15m
+    cookie-same-site: Lax
+    # cookie-secure: true  # set true behind HTTPS
 
 # StreamSheet 설정
 # StreamSheet configuration

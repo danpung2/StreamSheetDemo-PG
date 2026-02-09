@@ -39,11 +39,14 @@ class JwtAuthenticationFilter(
                     val userId = jwtTokenProvider.getUserId(token!!)
                     val adminUser = adminUserRepository.findById(userId).orElse(null)
                     if (adminUser != null) {
-                        val authority = SimpleGrantedAuthority("ROLE_${adminUser.role.name}")
+                        val authorities = mutableListOf(SimpleGrantedAuthority("ROLE_${adminUser.role.name}"))
+                        if (jwtTokenProvider.isDemoToken(token!!)) {
+                            authorities.add(SimpleGrantedAuthority("ROLE_DEMO"))
+                        }
                         val authentication = UsernamePasswordAuthenticationToken(
                             adminUser,
                             null,
-                            listOf(authority)
+                            authorities
                         )
                         authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
                         SecurityContextHolder.getContext().authentication = authentication

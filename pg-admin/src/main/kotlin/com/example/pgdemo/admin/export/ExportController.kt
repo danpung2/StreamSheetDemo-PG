@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import com.example.pgdemo.admin.security.RequestedByResolver
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
+import java.time.temporal.ChronoUnit
 
 @RestController
 @RequestMapping("/admin/exports")
@@ -18,6 +21,7 @@ class ExportController(
     private val exportHistoryStore: ExportHistoryStore
 ) {
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    private val demoAuthority = SimpleGrantedAuthority("ROLE_DEMO")
 
     @GetMapping("/payments/download")
     fun downloadPayments(
@@ -31,6 +35,14 @@ class ExportController(
         val parsedEndDate = LocalDate.parse(endDate, dateFormatter)
         require(!parsedEndDate.isBefore(parsedStartDate)) {
             "endDate must be on or after startDate"
+        }
+
+        if (isDemoSession()) {
+            val maxDays = 7L
+            val days = ChronoUnit.DAYS.between(parsedStartDate, parsedEndDate) + 1
+            require(days in 1..maxDays) {
+                "Demo export is limited to $maxDays days"
+            }
         }
 
         val headquartersUuid = headquartersId?.let(UUID::fromString)
@@ -62,5 +74,10 @@ class ExportController(
             queuedAt = queuedAt,
             downloadFilename = filename
         )
+    }
+
+    private fun isDemoSession(): Boolean {
+        val auth = SecurityContextHolder.getContext().authentication ?: return false
+        return auth.authorities.contains(demoAuthority)
     }
 }
