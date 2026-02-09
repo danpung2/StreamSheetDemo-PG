@@ -33,6 +33,11 @@ dependencies {
     // 개발 도구
     // Development tools
     developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+    // Testcontainers (integration tests)
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:mongodb")
 }
 
 // 실행 가능한 JAR 빌드

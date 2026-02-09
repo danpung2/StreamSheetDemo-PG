@@ -34,16 +34,19 @@ import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
+import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 
+@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "spring.main.allow-bean-definition-overriding=true",
-        "spring.datasource.url=jdbc:postgresql://localhost:5432/pgdemo",
-        "spring.datasource.username=pgdemo",
-        "spring.datasource.password=pgdemo",
         "spring.jpa.hibernate.ddl-auto=update",
-        "spring.data.mongodb.uri=mongodb://localhost:27017/pgdemo",
         "security.jwt.secret=test-jwt-secret-for-integration-tests-minimum-32-bytes"
     ]
 )
@@ -51,6 +54,29 @@ import org.springframework.security.crypto.password.PasswordEncoder
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("관리자 기능 통합 플로우 테스트")
 class AdminIntegrationFlowTest {
+    companion object {
+        @Container
+        @JvmStatic
+        val postgres = PostgreSQLContainer("postgres:16-alpine").apply {
+            withDatabaseName("pgdemo")
+            withUsername("pgdemo")
+            withPassword("pgdemo")
+        }
+
+        @Container
+        @JvmStatic
+        val mongo = MongoDBContainer("mongo:6.0")
+
+        @JvmStatic
+        @DynamicPropertySource
+        fun registerProperties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.datasource.url") { postgres.jdbcUrl }
+            registry.add("spring.datasource.username") { postgres.username }
+            registry.add("spring.datasource.password") { postgres.password }
+            registry.add("spring.data.mongodb.uri") { mongo.replicaSetUrl }
+        }
+    }
+
     @LocalServerPort
     private var port: Int = 0
 
@@ -80,12 +106,12 @@ class AdminIntegrationFlowTest {
         try {
             dataSource.connection.use { connection ->
                 if (!connection.isValid(2)) {
-                    fail("Database connection is not valid. Ensure docker-compose DBs are running.")
+                    fail("Database connection is not valid.")
                 }
             }
             mongoTemplate.executeCommand("{ ping: 1 }")
         } catch (ex: Exception) {
-            fail("Database connection failed. Ensure docker-compose DBs are running.", ex)
+            fail("Database connection failed.", ex)
         }
     }
 

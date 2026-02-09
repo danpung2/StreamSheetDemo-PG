@@ -53,6 +53,11 @@ dependencies {
     // Security 테스트
     // Security testing
     testImplementation("org.springframework.security:spring-security-test")
+
+    // Testcontainers (integration tests)
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:mongodb")
 }
 
 // 실행 가능한 JAR 빌드
