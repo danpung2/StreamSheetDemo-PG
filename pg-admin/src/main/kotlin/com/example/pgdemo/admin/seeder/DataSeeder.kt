@@ -20,6 +20,7 @@ import com.example.pgdemo.common.domain.repository.PaymentTransactionRepository
 import com.example.pgdemo.common.domain.repository.RefreshTokenRepository
 import com.example.pgdemo.common.domain.repository.RefundTransactionRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Profile
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -44,6 +45,7 @@ import kotlin.random.Random
  * - 500 admin users
  */
 @Service
+@Profile("seeder")
 class DataSeeder(
     private val headquartersRepository: HeadquartersRepository,
     private val merchantRepository: MerchantRepository,
@@ -52,7 +54,8 @@ class DataSeeder(
     private val adminUserRepository: AdminUserRepository,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val mongoTemplate: MongoTemplate,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val seederProperties: SeederProperties
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(DataSeeder::class.java)
@@ -641,8 +644,13 @@ class DataSeeder(
         
         val batch = mutableListOf<AdminUser>()
         val roles = UserRole.entries.toTypedArray()
-        val encodedPassword = passwordEncoder.encode("password123!")
-        val encodedOperatorPassword = passwordEncoder.encode("admin123!")
+
+        // 테넌트별 고유 비밀번호 (환경 변수에서 주입)
+        // Unique passwords per tenant type (injected from environment variables)
+        val encodedOperatorPassword = passwordEncoder.encode(seederProperties.operator)
+        val encodedHqAdminPassword = passwordEncoder.encode(seederProperties.hqAdmin)
+        val encodedHqManagerPassword = passwordEncoder.encode(seederProperties.hqManager)
+        val encodedMerchantPassword = passwordEncoder.encode(seederProperties.merchant)
 
         // 이미 존재하는 이메일은 다시 생성하지 않습니다.
         // Skip creating accounts that already exist (by email).
@@ -695,11 +703,11 @@ class DataSeeder(
                 role = if (index < 5) UserRole.ADMIN else roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.OPERATOR,
                 tenantId = null,
-                encodedPassword = encodedPassword
+                encodedPassword = encodedOperatorPassword
             ))
             existingEmails.add(email)
         }
-        
+
         // Create headquarters admins
         // 본사 관리자 생성
         val hqAdminCount = minOf(200, (ADMIN_USER_COUNT - operatorCount) / 2)
@@ -718,10 +726,10 @@ class DataSeeder(
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.HEADQUARTERS,
                 tenantId = hq.id,
-                encodedPassword = encodedPassword
+                encodedPassword = encodedHqAdminPassword
             ))
             existingEmails.add(email)
-            
+
             if (batch.size >= ADMIN_BATCH_SIZE) {
                 adminUserRepository.saveAll(batch)
                 adminCounter.addAndGet(batch.size)
@@ -729,7 +737,7 @@ class DataSeeder(
                 logProgress("Admin Users / 관리자", adminCounter.get(), ADMIN_USER_COUNT)
             }
         }
-        
+
         // Create merchant admins
         // 업체 관리자 생성
         val merchantAdminCount = ADMIN_USER_COUNT - operatorCount - hqAdminCount
@@ -747,10 +755,10 @@ class DataSeeder(
                 role = roles[Random.nextInt(roles.size)],
                 tenantType = TenantType.MERCHANT,
                 tenantId = merchant.id,
-                encodedPassword = encodedPassword
+                encodedPassword = encodedMerchantPassword
             ))
             existingEmails.add(email)
-            
+
             if (batch.size >= ADMIN_BATCH_SIZE) {
                 adminUserRepository.saveAll(batch)
                 adminCounter.addAndGet(batch.size)
@@ -764,6 +772,8 @@ class DataSeeder(
         val firstHeadquartersId = headquarters.firstOrNull()?.id
         val firstMerchantId = merchants.firstOrNull()?.id
 
+        // 본사 관리자 계정 (내부용)
+        // Headquarters Admin account (internal use)
         if (firstHeadquartersId != null) {
             val email = "hq_admin@pgdemo.com"
             val existing = adminUserRepository.findByEmail(email)
@@ -774,17 +784,17 @@ class DataSeeder(
                         role = UserRole.ADMIN,
                         tenantType = TenantType.HEADQUARTERS,
                         tenantId = firstHeadquartersId,
-                        encodedPassword = encodedPassword
+                        encodedPassword = encodedHqAdminPassword
                     ).apply {
-                        name = "HQ Admin"
+                        name = "본사 관리자"
                         status = "ACTIVE"
                     }
                 )
                 existingEmails.add(email)
             } else {
                 existing.email = email
-                existing.passwordHash = encodedPassword
-                existing.name = "HQ Admin"
+                existing.passwordHash = encodedHqAdminPassword
+                existing.name = "본사 관리자"
                 existing.tenantType = TenantType.HEADQUARTERS
                 existing.tenantId = firstHeadquartersId
                 existing.role = UserRole.ADMIN
@@ -794,6 +804,40 @@ class DataSeeder(
             }
         }
 
+        // 본사 매니저 계정 (공개 데모용)
+        // Headquarters Manager account (for public demo)
+        if (firstHeadquartersId != null) {
+            val email = "hq_manager@pgdemo.com"
+            val existing = adminUserRepository.findByEmail(email)
+            if (existing == null) {
+                batch.add(
+                    createAdminUser(
+                        email = email,
+                        role = UserRole.MANAGER,
+                        tenantType = TenantType.HEADQUARTERS,
+                        tenantId = firstHeadquartersId,
+                        encodedPassword = encodedHqManagerPassword
+                    ).apply {
+                        name = "본사 매니저"
+                        status = "ACTIVE"
+                    }
+                )
+                existingEmails.add(email)
+            } else {
+                existing.email = email
+                existing.passwordHash = encodedHqManagerPassword
+                existing.name = "본사 매니저"
+                existing.tenantType = TenantType.HEADQUARTERS
+                existing.tenantId = firstHeadquartersId
+                existing.role = UserRole.MANAGER
+                existing.status = "ACTIVE"
+                adminUserRepository.save(existing)
+                existingEmails.add(email)
+            }
+        }
+
+        // 업체 관리자 계정 (내부용)
+        // Merchant Admin account (internal use)
         if (firstMerchantId != null) {
             val email = "merchant_admin@pgdemo.com"
             val existing = adminUserRepository.findByEmail(email)
@@ -804,17 +848,17 @@ class DataSeeder(
                         role = UserRole.ADMIN,
                         tenantType = TenantType.MERCHANT,
                         tenantId = firstMerchantId,
-                        encodedPassword = encodedPassword
+                        encodedPassword = encodedMerchantPassword
                     ).apply {
-                        name = "Merchant Admin"
+                        name = "업체 관리자"
                         status = "ACTIVE"
                     }
                 )
                 existingEmails.add(email)
             } else {
                 existing.email = email
-                existing.passwordHash = encodedPassword
-                existing.name = "Merchant Admin"
+                existing.passwordHash = encodedMerchantPassword
+                existing.name = "업체 관리자"
                 existing.tenantType = TenantType.MERCHANT
                 existing.tenantId = firstMerchantId
                 existing.role = UserRole.ADMIN

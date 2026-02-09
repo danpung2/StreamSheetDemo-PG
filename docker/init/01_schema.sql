@@ -134,14 +134,17 @@ CREATE INDEX IF NOT EXISTS idx_api_key_tenant ON api_key(tenant_type, tenant_id)
 -- 초기 데이터 (개발용) / Initial data (for development)
 -- ============================================
 
--- 운영사 관리자 계정 (비밀번호: admin123!)
--- Operator admin account (password: admin123!)
--- BCrypt hash of 'admin123!'
+-- 운영사 관리자 계정 (초기 부트스트랩용)
+-- Operator admin account (for initial bootstrap)
+-- NOTE: DataSeeder가 실행되면 이 계정의 비밀번호가 업데이트됩니다.
+--       Password will be updated when DataSeeder runs.
+-- NOTE: 비밀번호는 시딩 환경 변수(예: SEEDER_PASSWORD_OPERATOR)로 주입됩니다.
+--       Password is injected via seeder environment variables (e.g., SEEDER_PASSWORD_OPERATOR).
 INSERT INTO admin_user (id, email, password_hash, name, tenant_type, role, status)
 VALUES (
     gen_random_uuid(),
     'admin@pgdemo.com',
-    '$2a$10$JR2W3Nx0p1kHMoRAXEF6ZObGjiCVz9Tz4F0doOqLJwuA/pSNtbJ3q',
+    '$2a$10$placeholder.hash.will.be.updated.by.seeder',
     '시스템 관리자',
     'OPERATOR',
     'ADMIN',

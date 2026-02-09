@@ -33,6 +33,18 @@ spring:
       connection-timeout: 60000
       max-lifetime: 1800000
 
+# 시딩 비밀번호 설정 (환경 변수에서 주입)
+# Seeding password configuration (injected from environment variables)
+# NOTE: 비밀번호는 환경 변수 또는 Docker secrets로 주입해야 합니다.
+#       Passwords must be injected via environment variables or Docker secrets.
+pgdemo:
+  seeder:
+    passwords:
+      operator: ${SEEDER_PASSWORD_OPERATOR}
+      hq-admin: ${SEEDER_PASSWORD_HQ_ADMIN}
+      hq-manager: ${SEEDER_PASSWORD_HQ_MANAGER}
+      merchant: ${SEEDER_PASSWORD_MERCHANT}
+
 # 로깅 설정 - 시딩 진행 상황 확인용
 # Logging configuration - for seeding progress monitoring
 logging:
