@@ -1,42 +1,45 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Users'">
-  <section class="page">
-    <div th:replace="fragments/header :: header('Users')"></div>
-    <div class="shell">
-      <div th:replace="fragments/sidebar :: sidebar('users')"></div>
-      <main class="main">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Admin users</h2>
-            <button class="button ghost" type="button">Invite user</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Last active</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="adminUser : ${users}">
-                  <td th:text="${adminUser.name}">Jordan Rivera</td>
-                  <td th:text="${adminUser.email}">admin@pgdemo.com</td>
-                  <td th:text="${adminUser.role}">Super admin</td>
-                  <td th:text="${adminUser.lastActive}">2m ago</td>
-                  <td><span class="status" th:classappend="${adminUser.statusClass}" th:text="${adminUser.status}">Active</span></td>
-                </tr>
-                <tr th:if="${users == null or #lists.isEmpty(users)}">
-                  <td colspan="5" class="empty">No users available.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-    </div>
-  </section>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
+  th:with="pageTitle='Users'">
+<section class="page">
+  <div th:replace="fragments/header :: header('Users')"></div>
+  <div class="shell">
+    <div th:replace="fragments/sidebar :: sidebar('users')"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Admin users</h2>
+          <button class="button ghost" type="button">Invite user</button>
+        </div>
+        <div class="table-wrap">
+          <table class="mobile-card">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Last active</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="adminUser : ${users}">
+                <td data-label="Name" th:text="${adminUser.name}">Jordan Rivera</td>
+                <td data-label="Email" th:text="${adminUser.email}">admin@pgdemo.com</td>
+                <td data-label="Role" th:text="${adminUser.role}">Super admin</td>
+                <td data-label="Last active" th:text="${adminUser.lastActive}">2m ago</td>
+                <td data-label="Status"><span class="status" th:classappend="${adminUser.statusClass}"
+                    th:text="${adminUser.status}">Active</span></td>
+              </tr>
+              <tr th:if="${users == null or #lists.isEmpty(users)}">
+                <td colspan="5" class="empty">No users available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</section>
+
 </html>

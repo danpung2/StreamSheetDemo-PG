@@ -1,171 +1,188 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Exports'">
-  <section class="page">
-    <div th:replace="fragments/header :: header('Exports')"></div>
-    <div class="shell">
-      <div th:replace="fragments/sidebar :: sidebar('exports')"></div>
-      <main class="main">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Transactions exports</h2>
-            <form method="post" action="/admin/exports/payments/jobs" class="filters" id="paymentExportCreateForm">
-              <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
-              <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
-
-              <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
-                <option value="" th:selected="${headquartersId == ''}">All HQ</option>
-                <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}" th:selected="${hq.id == headquartersId}">-</option>
-              </select>
-
-              <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
-                <option value="" th:selected="${merchantId == ''}">All Merchants</option>
-                <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
-              </select>
-
-              <select name="transactionStatus" th:if="${transactionStatusOptions != null and !#lists.isEmpty(transactionStatusOptions)}">
-                <option value="" selected>All Status</option>
-                <option th:each="s : ${transactionStatusOptions}" th:value="${s}" th:text="${s}">-</option>
-              </select>
-
-              <button class="button primary" type="submit">Request export</button>
-            </form>
-          </div>
-
-          <form class="filters" method="get" action="/admin/exports/payments" id="paymentExportListForm">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
+  th:with="pageTitle='Exports'">
+<section class="page">
+  <div th:replace="fragments/header :: header('Exports')"></div>
+  <div class="shell">
+    <div th:replace="fragments/sidebar :: sidebar('exports')"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Transactions exports</h2>
+          <form method="post" action="/admin/exports/payments/jobs" class="filters" id="paymentExportCreateForm">
             <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
             <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
 
-            <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
+            <select name="headquartersId"
+              th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
               <option value="" th:selected="${headquartersId == ''}">All HQ</option>
-              <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}" th:selected="${hq.id == headquartersId}">-</option>
+              <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}"
+                th:selected="${hq.id == headquartersId}">-</option>
             </select>
 
             <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
               <option value="" th:selected="${merchantId == ''}">All Merchants</option>
-              <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
+              <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}"
+                th:selected="${m.id == merchantId}">-</option>
             </select>
 
-            <select name="status">
-              <option value="" th:selected="${status == ''}">All Status</option>
-              <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-</option>
+            <select name="transactionStatus"
+              th:if="${transactionStatusOptions != null and !#lists.isEmpty(transactionStatusOptions)}">
+              <option value="" selected>All Status</option>
+              <option th:each="s : ${transactionStatusOptions}" th:value="${s}" th:text="${s}">-</option>
             </select>
 
-            <select name="size">
-              <option value="20" th:selected="${pageSize == 20}">20</option>
-              <option value="50" th:selected="${pageSize == 50}">50</option>
-              <option value="100" th:selected="${pageSize == 100}">100</option>
-              <option value="200" th:selected="${pageSize == 200}">200</option>
-            </select>
-            <button class="button ghost" type="submit">Apply</button>
+            <button class="button primary" type="submit">Request export</button>
           </form>
+        </div>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Job ID</th>
-                  <th>Range</th>
-                  <th>HQ</th>
-                  <th>Requested by</th>
-                  <th>Status</th>
-                  <th>Progress</th>
-                  <th>Queued</th>
-                  <th>Started</th>
-                  <th>Finished</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="exportJob : ${exportJobs}">
-                  <td th:text="${exportJob.jobId}">-</td>
-                  <td th:text="${exportJob.range}">-</td>
-                  <td th:text="${exportJob.headquarters}">-</td>
-                  <td th:text="${exportJob.requestedBy}">-</td>
-                  <td><span class="status" th:classappend="${exportJob.statusClass}" th:text="${exportJob.status}">-</span></td>
-                  <td th:text="${exportJob.progress}">-</td>
-                  <td th:text="${exportJob.queuedAt}">-</td>
-                  <td th:text="${exportJob.startedAt}">-</td>
-                  <td th:text="${exportJob.finishedAt}">-</td>
-                  <td>
-                    <a class="button ghost" th:if="${exportJob.canDownload}" th:href="@{/admin/exports/payments/jobs/{jobId}/download(jobId=${exportJob.jobId})}">Download</a>
-                    <form th:if="${exportJob.canCancel}" method="post" th:action="@{/admin/exports/payments/jobs/{jobId}/cancel(jobId=${exportJob.jobId})}" style="display:inline">
-                      <button class="button ghost" type="submit">Cancel</button>
-                    </form>
-                    <span class="chip muted" th:if="${exportJob.hasError}" th:text="${exportJob.errorSummary}">-</span>
-                  </td>
-                </tr>
-                <tr th:if="${exportJobs == null or #lists.isEmpty(exportJobs)}">
-                  <td colspan="10" class="empty">No export jobs found.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <form class="filters" method="get" action="/admin/exports/payments" id="paymentExportListForm">
+          <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
+          <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
 
-          <div class="filters" th:if="${totalPages != null and totalPages > 0}">
-            <span class="chip muted" th:text="|Total: ${#numbers.formatInteger(totalElements, 3, 'COMMA')}|">Total: 0</span>
-            <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page 1 / 1</span>
-            <a class="button ghost" th:if="${hasPrev}" th:href="@{/admin/exports/payments(page=${prevPage},size=${pageSize},fromUtc=${fromUtcLocal},toUtc=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Prev</a>
-            <a class="button ghost" th:if="${hasNext}" th:href="@{/admin/exports/payments(page=${nextPage},size=${pageSize},fromUtc=${fromUtcLocal},toUtc=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Next</a>
-          </div>
+          <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
+            <option value="" th:selected="${headquartersId == ''}">All HQ</option>
+            <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}"
+              th:selected="${hq.id == headquartersId}">-</option>
+          </select>
 
-          <script th:if="${autoRefresh}">
-            setTimeout(function () { window.location.reload(); }, 3000);
-          </script>
+          <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
+            <option value="" th:selected="${merchantId == ''}">All Merchants</option>
+            <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}"
+              th:selected="${m.id == merchantId}">-</option>
+          </select>
 
-          <script>
-            (function () {
-              var listForm = document.getElementById("paymentExportListForm");
-              if (!listForm) return;
+          <select name="status">
+            <option value="" th:selected="${status == ''}">All Status</option>
+            <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-
+            </option>
+          </select>
 
-              function setSelectValue(form, name, value) {
-                var el = form.querySelector('select[name="' + name + '"]');
-                if (el) el.value = value;
-              }
+          <select name="size">
+            <option value="20" th:selected="${pageSize == 20}">20</option>
+            <option value="50" th:selected="${pageSize == 50}">50</option>
+            <option value="100" th:selected="${pageSize == 100}">100</option>
+            <option value="200" th:selected="${pageSize == 200}">200</option>
+          </select>
+          <button class="button ghost" type="submit">Apply</button>
+        </form>
 
-              function setInputValue(form, name, value) {
-                var el = form.querySelector('input[name="' + name + '"]');
-                if (el && typeof value === "string") el.value = value;
-              }
+        <div class="table-wrap">
+          <table class="mobile-card">
+            <thead>
+              <tr>
+                <th>Job ID</th>
+                <th>Range</th>
+                <th>HQ</th>
+                <th>Requested by</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Queued</th>
+                <th>Started</th>
+                <th>Finished</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="exportJob : ${exportJobs}">
+                <td data-label="Job ID" th:text="${exportJob.jobId}">-</td>
+                <td data-label="Range" th:text="${exportJob.range}">-</td>
+                <td data-label="HQ" th:text="${exportJob.headquarters}">-</td>
+                <td data-label="Requested by" th:text="${exportJob.requestedBy}">-</td>
+                <td data-label="Status"><span class="status" th:classappend="${exportJob.statusClass}"
+                    th:text="${exportJob.status}">-</span></td>
+                <td data-label="Progress" th:text="${exportJob.progress}">-</td>
+                <td data-label="Queued" th:text="${exportJob.queuedAt}">-</td>
+                <td data-label="Started" th:text="${exportJob.startedAt}">-</td>
+                <td data-label="Finished" th:text="${exportJob.finishedAt}">-</td>
+                <td data-label="Action">
+                  <a class="button ghost" th:if="${exportJob.canDownload}"
+                    th:href="@{/admin/exports/payments/jobs/{jobId}/download(jobId=${exportJob.jobId})}">Download</a>
+                  <form th:if="${exportJob.canCancel}" method="post"
+                    th:action="@{/admin/exports/payments/jobs/{jobId}/cancel(jobId=${exportJob.jobId})}"
+                    style="display:inline">
+                    <button class="button ghost" type="submit">Cancel</button>
+                  </form>
+                  <span class="chip muted" th:if="${exportJob.hasError}" th:text="${exportJob.errorSummary}">-</span>
+                </td>
+              </tr>
+              <tr th:if="${exportJobs == null or #lists.isEmpty(exportJobs)}">
+                <td colspan="10" class="empty">No export jobs found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-              function getInputValue(form, name) {
-                var el = form.querySelector('input[name="' + name + '"]');
-                return el ? el.value : "";
-              }
+        <div class="filters" th:if="${totalPages != null and totalPages > 0}">
+          <span class="chip muted" th:text="|Total: ${#numbers.formatInteger(totalElements, 3, 'COMMA')}|">Total:
+            0</span>
+          <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
+            1 / 1</span>
+          <a class="button ghost" th:if="${hasPrev}"
+            th:href="@{/admin/exports/payments(page=${prevPage},size=${pageSize},fromUtc=${fromUtcLocal},toUtc=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Prev</a>
+          <a class="button ghost" th:if="${hasNext}"
+            th:href="@{/admin/exports/payments(page=${nextPage},size=${pageSize},fromUtc=${fromUtcLocal},toUtc=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},status=${status})}">Next</a>
+        </div>
 
-              function clearMerchant(form) {
-                var merchant = form.querySelector('select[name="merchantId"]');
-                if (merchant) merchant.value = "";
-              }
+        <script th:if="${autoRefresh}">
+          setTimeout(function () { window.location.reload(); }, 3000);
+        </script>
 
-              function onHeadquartersChange(e) {
-                var hqId = (e && e.target && e.target.value) ? e.target.value : "";
+        <script>
+          (function () {
+            var listForm = document.getElementById("paymentExportListForm");
+            if (!listForm) return;
 
-                var sourceForm = (e && e.target && e.target.form) ? e.target.form : listForm;
-                var fromUtc = getInputValue(sourceForm, "fromUtc");
-                var toUtc = getInputValue(sourceForm, "toUtc");
+            function setSelectValue(form, name, value) {
+              var el = form.querySelector('select[name="' + name + '"]');
+              if (el) el.value = value;
+            }
 
-                var forms = [
-                  document.getElementById("paymentExportCreateForm"),
-                  document.getElementById("paymentExportListForm")
-                ];
+            function setInputValue(form, name, value) {
+              var el = form.querySelector('input[name="' + name + '"]');
+              if (el && typeof value === "string") el.value = value;
+            }
 
-                forms.forEach(function (form) {
-                  if (!form) return;
-                  setInputValue(form, "fromUtc", fromUtc);
-                  setInputValue(form, "toUtc", toUtc);
-                  setSelectValue(form, "headquartersId", hqId);
-                  clearMerchant(form);
-                });
+            function getInputValue(form, name) {
+              var el = form.querySelector('input[name="' + name + '"]');
+              return el ? el.value : "";
+            }
 
-                listForm.submit();
-              }
+            function clearMerchant(form) {
+              var merchant = form.querySelector('select[name="merchantId"]');
+              if (merchant) merchant.value = "";
+            }
 
-              var hqSelects = document.querySelectorAll('select[name="headquartersId"]');
-              hqSelects.forEach(function (s) { s.addEventListener("change", onHeadquartersChange); });
-            })();
-          </script>
-        </section>
-      </main>
-    </div>
-  </section>
+            function onHeadquartersChange(e) {
+              var hqId = (e && e.target && e.target.value) ? e.target.value : "";
+
+              var sourceForm = (e && e.target && e.target.form) ? e.target.form : listForm;
+              var fromUtc = getInputValue(sourceForm, "fromUtc");
+              var toUtc = getInputValue(sourceForm, "toUtc");
+
+              var forms = [
+                document.getElementById("paymentExportCreateForm"),
+                document.getElementById("paymentExportListForm")
+              ];
+
+              forms.forEach(function (form) {
+                if (!form) return;
+                setInputValue(form, "fromUtc", fromUtc);
+                setInputValue(form, "toUtc", toUtc);
+                setSelectValue(form, "headquartersId", hqId);
+                clearMerchant(form);
+              });
+
+              listForm.submit();
+            }
+
+            var hqSelects = document.querySelectorAll('select[name="headquartersId"]');
+            hqSelects.forEach(function (s) { s.addEventListener("change", onHeadquartersChange); });
+          })();
+        </script>
+      </section>
+    </main>
+  </div>
+</section>
+
 </html>

@@ -1,71 +1,81 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})" th:with="pageTitle='Merchants'">
-  <section class="page">
-    <div th:replace="fragments/header :: header('Merchants')"></div>
-    <div class="shell">
-      <div th:replace="fragments/sidebar :: sidebar('merchants')"></div>
-      <main class="main">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Merchants</h2>
-            <form class="filters" method="get" action="/admin/merchants">
-              <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
-                <option value="" th:selected="${headquartersId == ''}">All HQ</option>
-                <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}" th:selected="${hq.id == headquartersId}">-</option>
-              </select>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
+  th:with="pageTitle='Merchants'">
+<section class="page">
+  <div th:replace="fragments/header :: header('Merchants')"></div>
+  <div class="shell">
+    <div th:replace="fragments/sidebar :: sidebar('merchants')"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Merchants</h2>
+          <form class="filters" method="get" action="/admin/merchants">
+            <select name="headquartersId"
+              th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
+              <option value="" th:selected="${headquartersId == ''}">All HQ</option>
+              <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}"
+                th:selected="${hq.id == headquartersId}">-</option>
+            </select>
 
-              <input type="text" name="merchantQuery" placeholder="Search name/code" th:value="${merchantQuery}" />
+            <input type="text" name="merchantQuery" placeholder="Search name/code" th:value="${merchantQuery}" />
 
-              <select name="status">
-                <option value="" th:selected="${status == ''}">All Status</option>
-                <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-</option>
-              </select>
+            <select name="status">
+              <option value="" th:selected="${status == ''}">All Status</option>
+              <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${s == status}">-
+              </option>
+            </select>
 
-              <select name="size">
-                <option th:each="s : ${sizeOptions}" th:value="${s}" th:text="${s}" th:selected="${pageSize == s}">-</option>
-              </select>
+            <select name="size">
+              <option th:each="s : ${sizeOptions}" th:value="${s}" th:text="${s}" th:selected="${pageSize == s}">-
+              </option>
+            </select>
 
-              <button class="button ghost" type="submit">Apply</button>
-            </form>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Merchant</th>
-                  <th>Code</th>
-                  <th>Industry</th>
-                  <th>Store</th>
-                  <th>Status</th>
-                  <th>Risk tier</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="merchant : ${merchants}">
-                  <td th:text="${merchant.name}">-</td>
-                  <td th:text="${merchant.code}">-</td>
-                  <td th:text="${merchant.industry}">-</td>
-                  <td th:text="${merchant.storeType}">-</td>
-                  <td><span class="chip muted" th:text="${merchant.status}">-</span></td>
-                  <td><span class="chip" th:text="${merchant.riskTier}">-</span></td>
-                  <td th:text="${merchant.updatedAt}">-</td>
-                </tr>
-                <tr th:if="${merchants == null or #lists.isEmpty(merchants)}">
-                  <td colspan="7" class="empty">No merchants available.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            <button class="button ghost" type="submit">Apply</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="mobile-card">
+            <thead>
+              <tr>
+                <th>Merchant</th>
+                <th>Code</th>
+                <th>Industry</th>
+                <th>Store</th>
+                <th>Status</th>
+                <th>Risk tier</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="merchant : ${merchants}">
+                <td data-label="Merchant" th:text="${merchant.name}">-</td>
+                <td data-label="Code" th:text="${merchant.code}">-</td>
+                <td data-label="Industry" th:text="${merchant.industry}">-</td>
+                <td data-label="Store" th:text="${merchant.storeType}">-</td>
+                <td data-label="Status"><span class="chip muted" th:text="${merchant.status}">-</span></td>
+                <td data-label="Risk tier"><span class="chip" th:text="${merchant.riskTier}">-</span></td>
+                <td data-label="Updated" th:text="${merchant.updatedAt}">-</td>
+              </tr>
+              <tr th:if="${merchants == null or #lists.isEmpty(merchants)}">
+                <td colspan="7" class="empty">No merchants available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="filters" th:if="${totalPages != null and totalPages > 0}">
-            <span class="chip muted" th:text="|Total: ${#numbers.formatInteger(totalElements, 3, 'COMMA')}|">Total: 0</span>
-            <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page 1 / 1</span>
-            <a class="button ghost" th:if="${hasPrev}" th:href="@{/admin/merchants(page=${prevPage},size=${pageSize},headquartersId=${headquartersId},merchantQuery=${merchantQuery},status=${status})}">Prev</a>
-            <a class="button ghost" th:if="${hasNext}" th:href="@{/admin/merchants(page=${nextPage},size=${pageSize},headquartersId=${headquartersId},merchantQuery=${merchantQuery},status=${status})}">Next</a>
-          </div>
-        </section>
-      </main>
-    </div>
-  </section>
+        <div class="filters" th:if="${totalPages != null and totalPages > 0}">
+          <span class="chip muted" th:text="|Total: ${#numbers.formatInteger(totalElements, 3, 'COMMA')}|">Total:
+            0</span>
+          <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
+            1 / 1</span>
+          <a class="button ghost" th:if="${hasPrev}"
+            th:href="@{/admin/merchants(page=${prevPage},size=${pageSize},headquartersId=${headquartersId},merchantQuery=${merchantQuery},status=${status})}">Prev</a>
+          <a class="button ghost" th:if="${hasNext}"
+            th:href="@{/admin/merchants(page=${nextPage},size=${pageSize},headquartersId=${headquartersId},merchantQuery=${merchantQuery},status=${status})}">Next</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</section>
+
 </html>

@@ -4,8 +4,18 @@
 <body>
   <header class="topbar" th:fragment="header(title)">
     <div class="topbar-title">
-      <p class="eyebrow">PG Admin Console</p>
-      <h1 th:text="${title}">Dashboard</h1>
+      <button class="button ghost mobile-menu-toggle" type="button" onclick="document.body.classList.toggle('nav-open')"
+        aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div>
+        <p class="eyebrow">PG Admin Console</p>
+        <h1 th:text="${title}">Dashboard</h1>
+      </div>
     </div>
     <div class="topbar-meta">
       <div class="meta-card">
@@ -13,9 +23,9 @@
         <strong
           th:text="${#arrays.length(@environment.activeProfiles) > 0 ? #strings.toUpperCase(#strings.arrayJoin(@environment.activeProfiles, ', ')) : 'LOCAL'}">LOCAL</strong>
       </div>
-      <div class="meta-card">
+      <div class="meta-card hide-mobile">
         <span class="meta-label">Last sync</span>
-        <strong class="js-now">Just now</strong>
+        <strong class="js-now no-wrap">Just now</strong>
       </div>
       <div class="meta-card user">
         <span class="meta-label">Signed in</span>

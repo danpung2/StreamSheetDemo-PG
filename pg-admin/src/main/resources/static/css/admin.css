@@ -189,12 +189,25 @@ a {
 .main {
   display: grid;
   gap: 24px;
+  min-width: 0;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1400px) {
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .card {
@@ -228,11 +241,16 @@ a {
   color: var(--danger);
 }
 
+.no-wrap {
+  white-space: nowrap;
+}
+
 .panel {
   background: var(--panel);
   padding: 20px 22px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .panel-header {
@@ -241,10 +259,12 @@ a {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 
 .panel-header h2 {
   margin: 0;
+  white-space: nowrap;
 }
 
 .filters {
@@ -268,6 +288,11 @@ a {
 
 .table-wrap {
   overflow-x: auto;
+  margin-top: 24px;
+}
+
+.filters+.table-wrap {
+  margin-top: 42px;
 }
 
 table {
@@ -279,8 +304,29 @@ table {
 th,
 td {
   padding: 12px 10px;
-  text-align: left;
+  text-align: center;
   border-bottom: 1px solid rgba(96, 86, 78, 0.12);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ID Column Styling */
+td:first-child,
+th:first-child {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+  text-align: center !important;
+  /* Force center alignment */
+}
+
+/* ID Pill Styling for Desktop */
+@media (min-width: 961px) {
+  td:first-child {
+    color: var(--ink);
+    font-weight: 500;
+  }
 }
 
 th {
@@ -378,7 +424,7 @@ th {
 }
 
 .event-table th {
-  text-align: left;
+  text-align: center;
 }
 
 .event-time,
@@ -462,28 +508,309 @@ th {
   font-weight: 600;
 }
 
-.login-form input {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(96, 86, 78, 0.2);
-  font: inherit;
+/* Modern Form Elements */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #fff;
+  border: 1px solid #d0c9c0;
+  border-radius: 8px;
+  padding: 0 14px;
+  height: 42px;
+  /* Fixed height for alignment */
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  /* Default to full width per container, adjust in layouts */
+  max-width: 100%;
 }
 
+select {
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2360564e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 111, 111, 0.15);
+}
+
+.button {
+  height: 42px;
+  /* Match input height */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* Fix Status Pills */
+.status {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Fix Meta Card for Signed In User */
+.meta-card.user {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.meta-card.user strong {
+  font-size: 0.95rem;
+  /* Reduce size for email */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  font-weight: 600;
+}
+
+/* Filter Layout Fix */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.filters>* {
+  flex: 0 0 auto;
+  /* Stop stretching weirdly */
+}
+
+/* Ensure inputs inside filters don't take full width */
+.filters input,
+.filters select {
+  width: auto;
+  min-width: 120px;
+}
+
+/* Date inputs might need specific width constraint if they grow too large */
+input[type="datetime-local"] {
+  width: auto;
+  min-width: 200px;
+}
+
+/* Mobile Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(42, 111, 111, 0.2);
+  border-radius: 8px;
+  padding: 6px;
+  margin-right: 12px;
+  cursor: pointer;
+  color: var(--accent);
+  transition: background 0.2s;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(42, 111, 111, 0.1);
+}
+
+.mobile-menu-toggle svg {
+  display: block;
+}
+
+/* Responsive Breakpoint */
 @media (max-width: 960px) {
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: 100%;
+    gap: 20px;
   }
 
+  /* Sidebar as Off-canvas Drawer */
   .sidebar {
-    position: static;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 1000;
+    transform: translateX(-110%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    border-radius: 0 16px 16px 0;
+    margin: 0;
   }
 
+  body.nav-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Overlay when sidebar matches */
+  body.nav-open::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 26, 24, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+    animation: fadeIn 0.3s;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Topbar Adjustments */
   .topbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 16px;
   }
 
+  .topbar-title {
+    display: flex;
+    align-items: center;
+  }
+
+  .topbar-title h1 {
+    font-size: 1.8rem;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Topbar Meta - No Scroll, cleaner layout */
   .topbar-meta {
     justify-content: flex-start;
+    flex-wrap: wrap;
+    /* Allow wrapping */
+    gap: 12px;
+    padding-bottom: 0;
+  }
+
+  .meta-card {
+    min-width: auto;
+    /* Allow shrinking */
+    flex: 1 1 calc(50% - 6px);
+    /* 2 per row */
+    font-size: 0.85rem;
+    padding: 10px;
+  }
+
+  /* Hide less critical info on mobile to save space */
+  .meta-card.hide-mobile {
+    display: none;
+  }
+
+  .meta-card.action {
+    flex: 1 1 100%;
+    /* Full width for action */
+  }
+
+  .card-value {
+    font-size: 1.4rem;
+  }
+
+  /* Ensure tables scroll */
+  .table-wrap {
+    margin: 0 -18px;
+    /* Negative margin to pull to edges inside panels */
+    padding: 0 18px;
+    width: calc(100% + 36px);
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  /* Table to Card Transformation */
+  table.mobile-card,
+  table.mobile-card thead,
+  table.mobile-card tbody,
+  table.mobile-card th,
+  table.mobile-card td,
+  table.mobile-card tr {
+    display: block !important;
+  }
+
+  table.mobile-card thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  table.mobile-card tr {
+    margin-bottom: 20px;
+    background: #fff;
+    border: 1px solid rgba(96, 86, 78, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(30, 26, 24, 0.06);
+  }
+
+  table.mobile-card td {
+    border: none !important;
+    border-bottom: 1px solid rgba(96, 86, 78, 0.08) !important;
+    padding: 16px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* Stack Label and Value */
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-height: auto !important;
+    white-space: normal !important;
+  }
+
+  table.mobile-card td::before {
+    content: attr(data-label);
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    color: var(--muted-2) !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px !important;
+  }
+
+  table.mobile-card td:last-child {
+    border-bottom: none !important;
+  }
+
+  table.mobile-card td .chip,
+  table.mobile-card td .status,
+  table.mobile-card td a,
+  table.mobile-card td span {
+    margin: 0 auto !important;
+    display: inline-flex !important;
+    text-align: center !important;
+  }
+
+  /* Force first cell to also be centered and stacked */
+  table.mobile-card td:first-child {
+    background: rgba(42, 111, 111, 0.05) !important;
+    font-weight: 700;
   }
 }

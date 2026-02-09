@@ -1,75 +1,79 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout/main :: layout(~{::section})"
   th:with="pageTitle='Transactions'">
-  <section class="page">
-    <div th:replace="fragments/header :: header('Transactions')"></div>
-    <div class="shell">
-      <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
-      <main class="main">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Transactions list</h2>
-            <form class="filters" method="get" action="/admin/payments" id="transactionsFilterForm">
-              <input type="datetime-local" name="from" th:value="${fromUtcLocal}" />
-              <input type="datetime-local" name="to" th:value="${toUtcLocal}" />
+<section class="page">
+  <div th:replace="fragments/header :: header('Transactions')"></div>
+  <div class="shell">
+    <div th:replace="fragments/sidebar :: sidebar('payments')"></div>
+    <main class="main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 style="white-space: nowrap">Transactions list</h2>
+          <form class="filters" method="get" action="/admin/payments" id="transactionsFilterForm">
+            <input type="datetime-local" name="from" th:value="${fromUtcLocal}" />
+            <input type="datetime-local" name="to" th:value="${toUtcLocal}" />
 
-              <select name="headquartersId" th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
-                <option value="" th:selected="${headquartersId == ''}">All HQ</option>
-                <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}" th:selected="${hq.id == headquartersId}">-</option>
-              </select>
+            <select name="headquartersId"
+              th:if="${headquartersOptions != null and !#lists.isEmpty(headquartersOptions)}">
+              <option value="" th:selected="${headquartersId == ''}">All HQ</option>
+              <option th:each="hq : ${headquartersOptions}" th:value="${hq.id}" th:text="${hq.name}"
+                th:selected="${hq.id == headquartersId}">-</option>
+            </select>
 
-              <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
-                <option value="" th:selected="${merchantId == ''}">All Merchants</option>
-                <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}" th:selected="${m.id == merchantId}">-</option>
-              </select>
+            <select name="merchantId" th:if="${merchantOptions != null and !#lists.isEmpty(merchantOptions)}">
+              <option value="" th:selected="${merchantId == ''}">All Merchants</option>
+              <option th:each="m : ${merchantOptions}" th:value="${m.id}" th:text="${m.name}"
+                th:selected="${m.id == merchantId}">-</option>
+            </select>
 
-              <select name="type">
-                <option value="" th:selected="${type == ''}">All Type</option>
-                <option value="Payment" th:selected="${type == 'Payment'}">Payment</option>
-                <option value="Refund" th:selected="${type == 'Refund'}">Refund</option>
-              </select>
+            <select name="type">
+              <option value="" th:selected="${type == ''}">All Type</option>
+              <option value="Payment" th:selected="${type == 'Payment'}">Payment</option>
+              <option value="Refund" th:selected="${type == 'Refund'}">Refund</option>
+            </select>
 
-              <select name="status" th:if="${type == ''}">
-                <option value="" th:selected="${status == ''}">All Status</option>
-                <option th:each="s : ${statusOptions}" th:value="${s.value}" th:text="${s.label}" th:selected="${s.value == status}">-</option>
-              </select>
+            <select name="status" th:if="${type == ''}">
+              <option value="" th:selected="${status == ''}">All Status</option>
+              <option th:each="s : ${statusOptions}" th:value="${s.value}" th:text="${s.label}"
+                th:selected="${s.value == status}">-</option>
+            </select>
 
-              <select name="size">
-                <option value="20" th:selected="${pageSize == 20}">20</option>
-                <option value="50" th:selected="${pageSize == 50}">50</option>
-                <option value="100" th:selected="${pageSize == 100}">100</option>
-              </select>
+            <select name="size">
+              <option value="20" th:selected="${pageSize == 20}">20</option>
+              <option value="50" th:selected="${pageSize == 50}">50</option>
+              <option value="100" th:selected="${pageSize == 100}">100</option>
+            </select>
 
-              <button class="button ghost" type="submit">Apply</button>
-            </form>
+            <button class="button ghost" type="submit">Apply</button>
+          </form>
 
-            <form method="post" action="/admin/exports/payments/jobs" class="filters" id="transactionsExportForm">
-              <input type="hidden" name="fromUtc" th:value="${fromUtcLocal}" />
-              <input type="hidden" name="toUtc" th:value="${toUtcLocal}" />
-              <input type="hidden" name="headquartersId" th:value="${headquartersId}" />
-              <input type="hidden" name="merchantId" th:value="${merchantId}" />
-              <input type="hidden" name="transactionType" th:value="${type}" />
-              <input type="hidden" name="transactionStatus" th:value="${type == '' ? status : ''}" />
-              <button class="button primary" type="submit">Export</button>
-            </form>
-          </div>
+          <form method="post" action="/admin/exports/payments/jobs" class="filters" id="transactionsExportForm">
+            <input type="hidden" name="fromUtc" th:value="${fromUtcLocal}" />
+            <input type="hidden" name="toUtc" th:value="${toUtcLocal}" />
+            <input type="hidden" name="headquartersId" th:value="${headquartersId}" />
+            <input type="hidden" name="merchantId" th:value="${merchantId}" />
+            <input type="hidden" name="transactionType" th:value="${type}" />
+            <input type="hidden" name="transactionStatus" th:value="${type == '' ? status : ''}" />
+            <button class="button primary" type="submit">Export</button>
+          </form>
+        </div>
 
-          <div class="filters" th:if="${filterError != null}">
-            <span class="chip danger" th:text="${filterError}">Invalid filter</span>
-          </div>
-          <div class="filters" th:if="${loadError != null}">
-            <span class="chip danger">Failed to load payments.</span>
-          </div>
+        <div class="filters" th:if="${filterError != null}">
+          <span class="chip danger" th:text="${filterError}">Invalid filter</span>
+        </div>
+        <div class="filters" th:if="${loadError != null}">
+          <span class="chip danger">Failed to load payments.</span>
+        </div>
 
-          <div class="filters">
-            <button class="button ghost" type="button" data-preset="1H">1H</button>
-            <button class="button ghost" type="button" data-preset="6H">6H</button>
-            <button class="button ghost" type="button" data-preset="24H">24H</button>
-            <button class="button ghost" type="button" data-preset="7D">7D</button>
-            <button class="button ghost" type="button" data-preset="30D">30D</button>
-          </div>
+        <div class="filters">
+          <button class="button ghost" type="button" data-preset="1H">1H</button>
+          <button class="button ghost" type="button" data-preset="6H">6H</button>
+          <button class="button ghost" type="button" data-preset="24H">24H</button>
+          <button class="button ghost" type="button" data-preset="7D">7D</button>
+          <button class="button ghost" type="button" data-preset="30D">30D</button>
+        </div>
         <div class="table-wrap">
-          <table>
+          <table class="mobile-card">
             <thead>
               <tr>
                 <th>Transaction ID</th>
@@ -81,13 +85,15 @@
             </thead>
             <tbody>
               <tr th:each="tx : ${transactions}">
-                <td><a th:href="@{/admin/payments/{transactionId}(transactionId=${tx.id})}" th:text="${tx.id}">-</a>
+                <td data-label="Transaction ID"><a th:href="@{/admin/payments/{transactionId}(transactionId=${tx.id})}"
+                    th:text="${tx.id}">-</a>
                 </td>
-                <td th:text="${tx.type}">-</td>
-                <td th:text="${tx.amount}">-</td>
-                <td><span class="status" th:classappend="${tx.statusClass}" th:text="${tx.status}">-</span>
+                <td data-label="Type" th:text="${tx.type}">-</td>
+                <td data-label="Amount" th:text="${tx.amount}">-</td>
+                <td data-label="Status"><span class="status" th:classappend="${tx.statusClass}"
+                    th:text="${tx.status}">-</span>
                 </td>
-                <td th:text="${tx.createdAt}">-</td>
+                <td data-label="Created" th:text="${tx.createdAt}">-</td>
               </tr>
               <tr th:if="${transactions == null or #lists.isEmpty(transactions)}">
                 <td colspan="5" class="empty">No transactions available.</td>
@@ -101,14 +107,14 @@
             0</span>
           <span class="chip" th:text="|Page ${pageNumber + 1} / ${#numbers.formatInteger(totalPages, 3, 'COMMA')}|">Page
             1 / 1</span>
-            <a class="button ghost" th:if="${hasPrev}"
+          <a class="button ghost" th:if="${hasPrev}"
             th:href="@{/admin/payments(page=${prevPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},type=${type},status=${status})}">Prev</a>
-           <a class="button ghost" th:if="${hasNext}"
+          <a class="button ghost" th:if="${hasNext}"
             th:href="@{/admin/payments(page=${nextPage},size=${pageSize},from=${fromUtcLocal},to=${toUtcLocal},headquartersId=${headquartersId},merchantId=${merchantId},type=${type},status=${status})}">Next</a>
         </div>
 
-          <script>
-            (function () {
+        <script>
+          (function () {
             function pad2(n) { return String(n).padStart(2, '0'); }
             function formatLocalDateTime(dt) {
               return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()) + 'T' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes());
@@ -133,31 +139,31 @@
               form.submit();
             }
 
-              document.querySelectorAll('button[data-preset]').forEach(function (btn) {
-                btn.addEventListener('click', function () { applyPreset(btn.getAttribute('data-preset')); });
+            document.querySelectorAll('button[data-preset]').forEach(function (btn) {
+              btn.addEventListener('click', function () { applyPreset(btn.getAttribute('data-preset')); });
+            });
+
+            var filterForm = document.getElementById('transactionsFilterForm');
+            if (!filterForm) return;
+            var hqSelect = filterForm.querySelector('select[name="headquartersId"]');
+            if (hqSelect) {
+              hqSelect.addEventListener('change', function () {
+                var merchantSelect = filterForm.querySelector('select[name="merchantId"]');
+                if (merchantSelect) merchantSelect.value = '';
+                filterForm.submit();
               });
+            }
 
-              var filterForm = document.getElementById('transactionsFilterForm');
-              if (!filterForm) return;
-              var hqSelect = filterForm.querySelector('select[name="headquartersId"]');
-              if (hqSelect) {
-                hqSelect.addEventListener('change', function () {
-                  var merchantSelect = filterForm.querySelector('select[name="merchantId"]');
-                  if (merchantSelect) merchantSelect.value = '';
-                  filterForm.submit();
-                });
-              }
-
-              var typeSelect = filterForm.querySelector('select[name="type"]');
-              if (typeSelect) {
-                typeSelect.addEventListener('change', function () {
-                  var statusSelect = filterForm.querySelector('select[name="status"]');
-                  if (statusSelect) statusSelect.value = '';
-                  filterForm.submit();
-                });
-              }
-            })();
-          </script>
+            var typeSelect = filterForm.querySelector('select[name="type"]');
+            if (typeSelect) {
+              typeSelect.addEventListener('change', function () {
+                var statusSelect = filterForm.querySelector('select[name="status"]');
+                if (statusSelect) statusSelect.value = '';
+                filterForm.submit();
+              });
+            }
+          })();
+        </script>
       </section>
     </main>
   </div>
