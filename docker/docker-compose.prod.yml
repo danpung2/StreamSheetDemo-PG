@@ -1,14 +1,10 @@
-# Docker Compose 설정
-# Docker Compose Configuration
-# PostgreSQL 및 MongoDB 로컬 개발 환경
-# Local development environment for PostgreSQL and MongoDB
+# Production-ish compose that runs from prebuilt images (e.g., ECR).
+# Requires env vars (no defaults) for app/db connectivity and JWT.
 
 services:
-  # PostgreSQL 데이터베이스
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: postgres
+    container_name: pg-demo-postgres
     environment:
       POSTGRES_DB: pgdemo
       POSTGRES_USER: pgdemo
@@ -23,11 +19,9 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # MongoDB 데이터베이스
-  # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: mongodb
+    container_name: pg-demo-mongodb
     environment:
       MONGO_INITDB_DATABASE: pgdemo
     volumes:
@@ -39,40 +33,14 @@ services:
       retries: 5
     restart: unless-stopped
 
-  builder:
-    image: gradle:8.5-jdk21
+  seeder:
+    image: ${PG_DEMO_PG_ADMIN_IMAGE:?PG_DEMO_PG_ADMIN_IMAGE is required}
+    container_name: pg-demo-seeder
     depends_on:
       postgres:
         condition: service_healthy
       mongodb:
         condition: service_healthy
-    working_dir: /workspace
-    volumes:
-      - ..:/workspace
-      - artifacts:/artifacts
-      - ${HOME}/.m2:/root/.m2
-      - ${HOME}/.gradle:/root/.gradle
-    command:
-      - bash
-      - -lc
-      - |
-        set -euo pipefail
-        ./gradlew --no-daemon :pg-main:bootJar :pg-admin:bootJar
-
-        MAIN_JAR="$$(ls -1 pg-main/build/libs/*.jar | grep -vE '(-plain\.jar)$$' | head -n 1)"
-        ADMIN_JAR="$$(ls -1 pg-admin/build/libs/*.jar | grep -vE '(-plain\.jar)$$' | head -n 1)"
-
-        cp "$$MAIN_JAR" /artifacts/pg-main.jar
-        cp "$$ADMIN_JAR" /artifacts/pg-admin.jar
-    restart: "no"
-
-  seeder:
-    image: eclipse-temurin:21-jre-jammy
-    depends_on:
-      builder:
-        condition: service_completed_successfully
-    volumes:
-      - artifacts:/artifacts:ro
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
@@ -87,39 +55,31 @@ services:
     command:
       - java
       - -jar
-      - /artifacts/pg-admin.jar
+      - /app/app.jar
       - --spring.profiles.active=seeder
       - --spring.main.web-application-type=none
       - --pgdemo.seeder.reset=false
     restart: "no"
 
   pg-main:
-    image: eclipse-temurin:21-jre-jammy
-    container_name: pg-main
+    image: ${PG_DEMO_PG_MAIN_IMAGE:?PG_DEMO_PG_MAIN_IMAGE is required}
+    container_name: pg-demo-pg-main
     depends_on:
       seeder:
         condition: service_completed_successfully
-    volumes:
-      - artifacts:/artifacts:ro
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
       SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI:?SPRING_DATA_MONGODB_URI is required}
-    command:
-      - java
-      - -jar
-      - /artifacts/pg-main.jar
     restart: unless-stopped
 
   pg-admin:
-    image: eclipse-temurin:21-jre-jammy
-    container_name: pg-admin
+    image: ${PG_DEMO_PG_ADMIN_IMAGE:?PG_DEMO_PG_ADMIN_IMAGE is required}
+    container_name: pg-demo-pg-admin
     depends_on:
       pg-main:
         condition: service_started
-    volumes:
-      - artifacts:/artifacts:ro
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
@@ -131,31 +91,22 @@ services:
       SECURITY_DEMO_USER_EMAIL: ${SECURITY_DEMO_USER_EMAIL:-hq_manager@pgdemo.com}
       SECURITY_DEMO_ACCESS_TOKEN_EXPIRY: ${SECURITY_DEMO_ACCESS_TOKEN_EXPIRY:-15m}
       SECURITY_DEMO_COOKIE_SAME_SITE: ${SECURITY_DEMO_COOKIE_SAME_SITE:-Lax}
-      SECURITY_DEMO_COOKIE_SECURE: ${SECURITY_DEMO_COOKIE_SECURE:-false}
-    command:
-      - java
-      - -jar
-      - /artifacts/pg-admin.jar
+      SECURITY_DEMO_COOKIE_SECURE: ${SECURITY_DEMO_COOKIE_SECURE:-true}
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: ${PG_DEMO_NGINX_IMAGE:?PG_DEMO_NGINX_IMAGE is required}
     container_name: pg-demo-nginx
     depends_on:
       pg-admin:
         condition: service_started
     ports:
       - "127.0.0.1:81:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/sites-available:/etc/nginx/sites-available:ro
-      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
     restart: unless-stopped
 
   traffic:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.pg-traffic
+    image: ${PG_DEMO_TRAFFIC_IMAGE:?PG_DEMO_TRAFFIC_IMAGE is required}
+    container_name: pg-demo-traffic
     depends_on:
       pg-main:
         condition: service_started
@@ -170,12 +121,8 @@ services:
       - "2000"
     restart: unless-stopped
 
-# 볼륨 정의
-# Volume definitions
 volumes:
   postgres_data:
     driver: local
   mongodb_data:
-    driver: local
-  artifacts:
     driver: local

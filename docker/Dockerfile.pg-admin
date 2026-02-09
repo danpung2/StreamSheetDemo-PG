@@ -1,0 +1,17 @@
+FROM gradle:8.5-jdk21 AS build
+
+WORKDIR /workspace
+COPY . .
+
+RUN bash -lc 'set -euo pipefail; \
+    ./gradlew --no-daemon :pg-admin:bootJar; \
+    JAR="$(ls -1 pg-admin/build/libs/*.jar | grep -vE "(-plain\\.jar)$" | head -n 1)"; \
+    cp "$JAR" /tmp/app.jar'
+
+FROM eclipse-temurin:21-jre-jammy
+
+WORKDIR /app
+COPY --from=build /tmp/app.jar /app/app.jar
+
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
