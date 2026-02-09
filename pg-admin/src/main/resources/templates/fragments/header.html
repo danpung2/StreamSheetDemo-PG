@@ -1,31 +1,35 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-  <body>
-    <header class="topbar" th:fragment="header(title)">
-      <div class="topbar-title">
-        <p class="eyebrow">PG Admin Console</p>
-        <h1 th:text="${title}">Dashboard</h1>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<body>
+  <header class="topbar" th:fragment="header(title)">
+    <div class="topbar-title">
+      <p class="eyebrow">PG Admin Console</p>
+      <h1 th:text="${title}">Dashboard</h1>
+    </div>
+    <div class="topbar-meta">
+      <div class="meta-card">
+        <span class="meta-label">Environment</span>
+        <strong
+          th:text="${#arrays.length(@environment.activeProfiles) > 0 ? #strings.toUpperCase(#strings.arrayJoin(@environment.activeProfiles, ', ')) : 'LOCAL'}">LOCAL</strong>
       </div>
-      <div class="topbar-meta">
-        <div class="meta-card">
-          <span class="meta-label">Environment</span>
-          <strong>Staging</strong>
-        </div>
-        <div class="meta-card">
-          <span class="meta-label">Last sync</span>
-          <strong class="js-now">Just now</strong>
-        </div>
-        <div class="meta-card user">
-          <span class="meta-label">Signed in</span>
-          <strong th:text="${currentUser} ?: 'Admin User'">Admin User</strong>
-        </div>
-        <div class="meta-card action">
-          <span class="meta-label">Session</span>
-          <form method="post" action="/logout">
-            <button class="button ghost compact" type="submit">Logout</button>
-          </form>
-        </div>
+      <div class="meta-card">
+        <span class="meta-label">Last sync</span>
+        <strong class="js-now">Just now</strong>
       </div>
-    </header>
-  </body>
+      <div class="meta-card user">
+        <span class="meta-label">Signed in</span>
+        <strong sec:authorize="isAnonymous()">Guest</strong>
+        <strong sec:authorize="!isAnonymous()" th:text="${#authentication.principal.email}">User</strong>
+      </div>
+      <div class="meta-card action">
+        <span class="meta-label">Session</span>
+        <form method="post" action="/logout">
+          <button class="button ghost compact" type="submit">Logout</button>
+        </form>
+      </div>
+    </div>
+  </header>
+</body>
+
 </html>

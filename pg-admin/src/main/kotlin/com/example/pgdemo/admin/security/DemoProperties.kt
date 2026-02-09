@@ -9,7 +9,7 @@ class DemoProperties {
      * Enable passwordless demo session issuance.
      * 공개 데모 세션(비밀번호 없이) 발급 기능 활성화 여부.
      */
-    var enabled: Boolean = false
+    var enabled: Boolean = true
 
     /**
      * Demo user email to issue tokens for.

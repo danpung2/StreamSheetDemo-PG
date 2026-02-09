@@ -13,9 +13,9 @@ spring:
   # 데이터베이스 설정
   # Database configuration
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/pgdemo}
+    username: ${SPRING_DATASOURCE_USERNAME:pgdemo}
+    password: ${SPRING_DATASOURCE_PASSWORD:pgdemo}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -37,7 +37,7 @@ spring:
   # MongoDB configuration
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/pgdemo}
   
   # Thymeleaf 설정
   # Thymeleaf configuration
@@ -60,7 +60,9 @@ pg-main:
 # JWT configuration
 security:
   jwt:
-    secret: ${JWT_SECRET}
+    # 256-bit+ key for HMAC-SHA algorithms (Base64 encoded)
+    # Default value is for local development only
+    secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seS1kby1ub3QtdXNlLWluLXByb2R1Y3Rpb24=}
     access-token-expiry: 15m
     refresh-token-expiry: 7d
   password:
@@ -91,7 +93,7 @@ security:
     export-block-duration: 2m
 
   demo:
-    enabled: false
+    enabled: true
     user-email: hq_manager@pgdemo.com
     access-token-expiry: 15m
     cookie-same-site: Lax
