@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -25,24 +27,12 @@ class LoginRateLimitFilter(
 
     private val log = LoggerFactory.getLogger(LoginRateLimitFilter::class.java)
 
-    companion object {
-        private val BUCKETED_PATHS = listOf(
-            RateLimitProperties.Bucket.DEMO to "/api/demo/start",
-            RateLimitProperties.Bucket.LOGIN to "/api/auth/login",
-            RateLimitProperties.Bucket.LOGIN to "/api/auth/refresh",
-            RateLimitProperties.Bucket.EXPORT to "/admin/exports/",
-            RateLimitProperties.Bucket.EXPORT to "/admin/exports"
-        )
-    }
-
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        val path = request.requestURI
-
-        val bucket = resolveBucket(path)
+        val bucket = resolveBucket(request)
         if (bucket == null) {
             filterChain.doFilter(request, response)
             return
@@ -50,26 +40,38 @@ class LoginRateLimitFilter(
 
         val clientIp = getClientIp(request)
 
-        // Check if IP is allowed / IP 허용 여부 확인
         if (!rateLimiter.isAllowed(bucket, clientIp)) {
-            handleRateLimitExceeded(response, bucket, clientIp)
+            handleRateLimitExceeded(request, response, bucket, clientIp)
             return
         }
 
-        // Record the attempt / 시도 기록
         if (!rateLimiter.recordAttempt(bucket, clientIp)) {
-            handleRateLimitExceeded(response, bucket, clientIp)
+            handleRateLimitExceeded(request, response, bucket, clientIp)
             return
         }
 
-        // Add rate limit headers / Rate Limit 헤더 추가
         addRateLimitHeaders(response, bucket, clientIp)
 
         filterChain.doFilter(request, response)
     }
 
-    private fun resolveBucket(path: String): RateLimitProperties.Bucket? {
-        return BUCKETED_PATHS.firstOrNull { (_, prefix) -> path.startsWith(prefix) }?.first
+    private fun resolveBucket(request: HttpServletRequest): RateLimitProperties.Bucket? {
+        val path = request.requestURI
+        val method = request.method
+
+        if (path == "/api/demo/start") {
+            return RateLimitProperties.Bucket.DEMO
+        }
+        if (path == "/api/auth/login" || path == "/api/auth/refresh") {
+            return RateLimitProperties.Bucket.LOGIN
+        }
+        if (path == "/admin/exports/payments" && method.equals("GET", ignoreCase = true)) {
+            return RateLimitProperties.Bucket.EXPORT_READ
+        }
+        if (path.startsWith("/admin/exports/") || path == "/admin/exports") {
+            return RateLimitProperties.Bucket.EXPORT
+        }
+        return null
     }
 
     /**
@@ -98,6 +100,7 @@ class LoginRateLimitFilter(
     }
 
     private fun handleRateLimitExceeded(
+        request: HttpServletRequest,
         response: HttpServletResponse,
         bucket: RateLimitProperties.Bucket,
         clientIp: String
@@ -112,9 +115,15 @@ class LoginRateLimitFilter(
         }
 
         response.status = HttpStatus.TOO_MANY_REQUESTS.value()
-        response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.setHeader("Retry-After", retryAfterSeconds.toString())
         response.setHeader("X-RateLimit-Remaining", "0")
+
+        val isExportBucket = bucket == RateLimitProperties.Bucket.EXPORT || bucket == RateLimitProperties.Bucket.EXPORT_READ
+        if (isExportBucket && isHtmlPageRequest(request)) {
+            val encodedReason = URLEncoder.encode(bucket.name, StandardCharsets.UTF_8)
+            response.sendRedirect("/admin/exports/payments?rateLimited=true&retryAfter=$retryAfterSeconds&bucket=$encodedReason")
+            return
+        }
 
         val errorResponse = mapOf(
             "error" to "Too Many Requests",
@@ -123,7 +132,16 @@ class LoginRateLimitFilter(
             "retryAfterSeconds" to retryAfterSeconds
         )
 
+        response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.writer.write(objectMapper.writeValueAsString(errorResponse))
+    }
+
+    private fun isHtmlPageRequest(request: HttpServletRequest): Boolean {
+        if (request.method.equals("GET", ignoreCase = true).not()) {
+            return false
+        }
+        val accept = request.getHeader("Accept") ?: return false
+        return accept.contains(MediaType.TEXT_HTML_VALUE)
     }
 
     private fun addRateLimitHeaders(

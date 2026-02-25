@@ -465,9 +465,17 @@ class PaymentViewController(
         @RequestParam(name = "headquartersId", required = false) headquartersId: String?,
         @RequestParam(name = "merchantId", required = false) merchantId: String?,
         @RequestParam(name = "status", required = false) status: ExportJobStatus?,
+        @RequestParam(name = "rateLimited", required = false) rateLimited: Boolean?,
+        @RequestParam(name = "retryAfter", required = false) retryAfter: Long?,
+        @RequestParam(name = "bucket", required = false) bucket: String?,
         model: Model
     ): String {
         model.addAttribute("pageTitle", "Exports")
+        if (rateLimited == true) {
+            model.addAttribute("rateLimitedNotice", true)
+            model.addAttribute("rateLimitedRetryAfter", (retryAfter ?: 0L).coerceAtLeast(0L))
+            model.addAttribute("rateLimitedBucket", bucket?.trim()?.takeIf { it.isNotBlank() } ?: "EXPORT")
+        }
 
         model.addAttribute(
             "transactionStatusOptions",

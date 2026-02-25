@@ -15,6 +15,7 @@ class RateLimitProperties {
     enum class Bucket {
         LOGIN,
         DEMO,
+        EXPORT_READ,
         EXPORT
     }
 
@@ -45,10 +46,15 @@ class RateLimitProperties {
     var exportWindowDuration: Duration = Duration.ofMinutes(1)
     var exportBlockDuration: Duration = Duration.ofMinutes(2)
 
+    var exportReadMaxAttempts: Int = 60
+    var exportReadWindowDuration: Duration = Duration.ofMinutes(1)
+    var exportReadBlockDuration: Duration = Duration.ofSeconds(30)
+
     fun getMaxAttempts(bucket: Bucket): Int {
         return when (bucket) {
             Bucket.LOGIN -> maxAttempts
             Bucket.DEMO -> demoMaxAttempts
+            Bucket.EXPORT_READ -> exportReadMaxAttempts
             Bucket.EXPORT -> exportMaxAttempts
         }
     }
@@ -57,6 +63,7 @@ class RateLimitProperties {
         return when (bucket) {
             Bucket.LOGIN -> windowDuration
             Bucket.DEMO -> demoWindowDuration
+            Bucket.EXPORT_READ -> exportReadWindowDuration
             Bucket.EXPORT -> exportWindowDuration
         }
     }
@@ -65,6 +72,7 @@ class RateLimitProperties {
         return when (bucket) {
             Bucket.LOGIN -> blockDuration
             Bucket.DEMO -> demoBlockDuration
+            Bucket.EXPORT_READ -> exportReadBlockDuration
             Bucket.EXPORT -> exportBlockDuration
         }
     }

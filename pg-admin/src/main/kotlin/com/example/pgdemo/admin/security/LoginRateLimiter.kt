@@ -166,6 +166,7 @@ class LoginRateLimiter(
         val maxWindow = listOf(
             rateLimitProperties.windowDuration,
             rateLimitProperties.demoWindowDuration,
+            rateLimitProperties.exportReadWindowDuration,
             rateLimitProperties.exportWindowDuration
         ).maxOrNull() ?: rateLimitProperties.windowDuration
         val windowStart = now.minus(maxWindow)

@@ -36,6 +36,11 @@
           </form>
         </div>
 
+        <div class="filters" th:if="${rateLimitedNotice == true}">
+          <span class="chip danger"
+            th:text="|요청이 너무 많아 잠시 제한되었습니다. ${rateLimitedRetryAfter}초 후 다시 시도해 주세요. (${rateLimitedBucket})|">Rate limited</span>
+        </div>
+
         <form class="filters" method="get" action="/admin/exports/payments" id="paymentExportListForm">
           <input type="datetime-local" name="fromUtc" th:value="${fromUtcLocal}" />
           <input type="datetime-local" name="toUtc" th:value="${toUtcLocal}" />
@@ -125,7 +130,7 @@
         </div>
 
         <script th:if="${autoRefresh}">
-          setTimeout(function () { window.location.reload(); }, 3000);
+          setTimeout(function () { window.location.reload(); }, 10000);
         </script>
 
         <script>

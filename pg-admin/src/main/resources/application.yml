@@ -88,6 +88,9 @@ security:
     demo-block-duration: 10m
 
     # Export endpoints (/admin/exports/**)
+    export-read-max-attempts: 60
+    export-read-window-duration: 1m
+    export-read-block-duration: 30s
     export-max-attempts: 10
     export-window-duration: 1m
     export-block-duration: 2m
